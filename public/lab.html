@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Stuttgart city laboratory · simmis</title>
+  <link rel="stylesheet" href="/lab/maplibre.css">
+  <link rel="stylesheet" href="/lab/lab.css">
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="https://simm.is">simm<span>is</span><i aria-hidden="true">▦</i></a>
+    <div class="project-name">city laboratory <span>/ Stuttgart</span></div>
+    <a class="stage" href="/model.html?v=7">HOW THE MODEL WORKS ↗</a>
+    
+  </header>
+  <main class="workspace">
+    <aside class="tools">
+      <div id="city-tools">
+        <div class="section-label">EXPLORE THE CITY</div><h1>many layers.<br>one city.</h1>
+        <div class="scenario-control"><div class="section-label">POLICY SCENARIO</div><label for="scenario-select">Intervention</label><select id="scenario-select"><option value="">baseline — no intervention</option></select>
+        <p class="hint" id="scenario-question">Scenarios are evaluated on the server under the fitted posterior; choosing one reads a published result, it does not rerun the model.</p></div>
+        <div class="section-label">VIEW</div><div id="view-picker" class="view-picker"></div><details class="customize-layers"><summary>customize layers</summary><div id="overlay-picker"></div></details>
+        <details class="how-it-works"><summary>how this works</summary>
+        <ol><li>936,597 people are drawn from the census and the commuter statistics, each with a home cell, a workplace and a survey diary.</li>
+        <li>Every shop trip picks a venue by measured floor area and distance; three demand classes (food, clothing, long-term goods) have their own kernels.</li>
+        <li>Each visit spends a household's share of the district's purchasing power; leakage and in-commuter spend come from the published class balances.</li>
+        <li>The kernel parameters are <em>inferred</em> from the 69 published district × class turnovers. The result is a set of plausible kernels, 48 short MCMC chains: an approximate posterior, not a calibrated one.</li>
+        <li>A policy scenario re-runs the same people and money under a changed venue set, under every posterior draw. Its numbers are model results under stated assumptions, not forecasts.</li></ol>
+        <a href="/model.html?v=7">the model, with every definition named in the code ↗</a></details>
+        
+        <label for="city-select">City</label><select id="city-select"><option value="stuttgart">Stuttgart</option></select>
+        <div class="region-control"><label for="area-select">Region to explore</label><select id="area-select"><option value="">whole city</option></select>
+        <p class="hint" id="area-explanation">Choose a district here or click its boundary on the map. A district is required for observed record overlays. Selecting one filters existing data and published outputs; it does not run a new simulation.</p></div>
+        
+        <label for="observed-year">Observed storefront / licence year</label><input id="observed-year" type="number" min="1900" max="2100" step="1" value="2024">
+        <p class="hint">Year filters source records. It does not change the date of a published simulation.</p>
+        
+        <div class="population-units"><span>Population units</span><strong>residents per approximately 100 m cell</strong><small>Color is clipped at 400 residents/cell. For context, 100 residents/cell ≈ 10,000 residents/km².</small></div>
+        <label class="parameter" for="city-elevation">3D column height <output id="city-elevation-value">1×</output></label>
+        <input id="city-elevation" type="range" min="0.25" max="3" step="0.25" value="1">
+        <div class="range-label"><span>lower</span><span>higher</span></div>
+        <p class="hint">Changes vertical exaggeration only. Population values and colors stay fixed.</p>
+        <button id="refresh-city" class="quiet">refresh data ↻</button>
+        <div id="city-data-status" class="hint" role="status"></div>
+        <details><summary>Data connections</summary><label for="store-api">Evidence API</label><input id="store-api" type="url"><label for="simulation-api">Simulation API</label><input id="simulation-api" type="url"><button id="connect-city" class="quiet">connect</button></details>
+      </div>
+    </aside>
+    <section class="map-stage" aria-label="City simulation map">
+      <div id="lab-map" aria-label="Map of Stuttgart with simulation layers"></div>
+      <div class="map-title"><span id="map-scope" class="section-label">STUTTGART / WHOLE CITY</span><strong id="map-heading">observe. simulate. compare.</strong></div>
+      <div class="map-controls"><button id="camera" aria-pressed="true">3D / population</button><button id="home">recenter ↙</button></div>
+      <div class="map-explanation"><div class="map-key"></div>
+      <div class="map-caption">Columns show population, not building height. Lines show model choices, not observed journeys.</div>
+      <div class="map-credits"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> contributors · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> · <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a> · Overture · Zensus 2022 · <a href="https://maplibre.org" target="_blank" rel="noopener">MapLibre</a></div>
+      </div>
+      <div id="city-time">
+        <div class="time-row"><label for="clock-kind">Time</label><select id="clock-kind"><option value="day">simulated weekday</option></select><button id="time-back" aria-label="Step backward">−</button><button id="time-play" aria-label="Play simulation playback">play</button><button id="time-forward" aria-label="Step forward">＋</button><output id="time-label">08:00</output></div>
+        <input id="time-slider" aria-label="Simulation playback time" type="range" min="0" max="1439" step="1" value="480">
+        <div class="time-row secondary"><label for="time-speed">Playback speed</label><select id="time-speed"><option value="15">15 min / sec</option><option value="60" selected>60 min / sec</option><option value="180">180 min / sec</option></select><label for="trip-trail">Trail</label><select id="trip-trail"><option value="10">10 min</option><option value="30" selected>30 min</option><option value="60">60 min</option></select></div>
+        <p id="time-note" class="hint">Playback reads a recorded weekday; it does not advance the model.</p>
+      </div>
+      <div id="status" role="status">Loading the published-data fixture…</div>
+      <div id="map-warning" role="status" hidden></div>
+      <div id="selection" class="selection" hidden></div>
+    </section>
+    <aside class="evidence"><div id="city-evidence"></div></aside>
+    <section id="city-outcomes" class="outcomes" aria-label="City outcomes"></section>
+  </main>
+  <script src="/js/app/main.js"></script>
+</body>
+</html>

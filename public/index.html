@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>City laboratory · simmis</title></head>
+<body><p><a id="laboratory" href="/lab.html?mode=city">Open the city laboratory</a></p>
+<script>
+  const destination = new URL('/lab.html', location.href);
+  destination.search = location.search;
+  if (!destination.searchParams.has('mode')) destination.searchParams.set('mode', 'city');
+  destination.hash = location.hash;
+  document.getElementById('laboratory').href = destination.href;
+  location.replace(destination.href);
+</script></body></html>

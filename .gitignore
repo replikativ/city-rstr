@@ -1,0 +1,19 @@
+target/
+.cpcache/
+.nrepl-port
+# data is obtained separately (DATA.md); only its README is tracked
+/data/*
+!/data/README.md
+*.log
+node_modules/
+public/js/
+.shadow-cljs/
+nrepl.log
+dist/
+
+.clj-kondo/.cache/
+.lsp/
+.calva/
+*.swp
+*~
+.DS_Store

@@ -1,0 +1,98 @@
+version: 2.1
+
+# The test suite needs no data, no GPU and no network beyond dependency
+# resolution: every test builds its own small world, and the day's kernels run
+# uncompiled on the JVM. Tests tagged ^:data read data/derived and are excluded
+# by the :test alias; dev/checks/kernel_device.clj needs a GPU and is not run.
+
+commands:
+  install-clojure:
+    description: "Install Clojure CLI tools"
+    steps:
+      - run:
+          name: Install Clojure CLI 1.12.0.1488
+          command: |
+            if ! command -v clojure &> /dev/null; then
+              curl -L -O https://download.clojure.org/install/linux-install-1.12.0.1488.sh
+              chmod +x linux-install-1.12.0.1488.sh
+              sudo ./linux-install-1.12.0.1488.sh
+              rm linux-install-1.12.0.1488.sh
+            fi
+  restore-deps:
+    steps:
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "deps.edn" }}
+            - v1-dependencies-
+
+executors:
+  clojure-java24:
+    docker:
+      - image: cimg/openjdk:24.0-node
+    working_directory: ~/repo
+    resource_class: large
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx3200m"
+
+jobs:
+  test:
+    executor: clojure-java24
+    steps:
+      - checkout
+      - install-clojure
+      - restore-deps
+      - run:
+          name: Download dependencies
+          command: clojure -P -M:dev:test:ui
+      - save_cache:
+          paths:
+            - ~/.m2
+            - ~/.gitlibs
+          key: v1-dependencies-{{ checksum "deps.edn" }}
+      - run:
+          name: Run tests
+          command: clojure -M:test
+
+  lint:
+    executor: clojure-java24
+    steps:
+      - checkout
+      - run:
+          name: Install clj-kondo
+          command: |
+            curl -sLO https://raw.githubusercontent.com/clj-kondo/clj-kondo/master/script/install-clj-kondo
+            chmod +x install-clj-kondo
+            sudo ./install-clj-kondo
+      - run:
+          name: Lint
+          command: clj-kondo --lint src test --fail-level error
+
+  explorer:
+    executor: clojure-java24
+    steps:
+      - checkout
+      - install-clojure
+      - restore-deps
+      - restore_cache:
+          keys:
+            - v1-npm-{{ checksum "package-lock.json" }}
+      - run:
+          name: Install npm dependencies
+          command: npm ci
+      - save_cache:
+          paths:
+            - ~/.npm
+          key: v1-npm-{{ checksum "package-lock.json" }}
+      - run:
+          name: Release build of the explorer
+          command: npm run release
+      - run:
+          name: The model page is current
+          command: python3 scripts/render_model.py && git diff --exit-code public/model.html
+
+workflows:
+  test-lint-build:
+    jobs:
+      - test
+      - lint
+      - explorer

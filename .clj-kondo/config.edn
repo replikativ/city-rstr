@@ -1,0 +1,2 @@
+{:lint-as {raster.core/deftm schema.core/defn}
+ :linters {:unresolved-symbol {:exclude [(raster.par/map-void!) Array]}}}
