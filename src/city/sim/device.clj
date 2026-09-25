@@ -16,7 +16,9 @@
 
    Only the power kernel without a reach bound runs here; anything else
    throws, and the caller uses `candidates/reduce-dense`. A handle serialises
-   its calls, so chains running in parallel can share it.
+   its calls, so chains running in parallel can share it. A lost device (a
+   suspend and resume resets the GPU and every context on it) is reopened
+   once and the evaluation repeated; `:recoveries` counts how often.
 
    The distances live on the device as double, 1.0 GB on Stuttgart: raster
    compiles a double kernel with every floating array in double, so a float32
@@ -44,10 +46,10 @@
              {:type (:kernel-dtype s)
               :value (case (:kernel-dtype s) :int (int v) :long (long v) :float (float v) :double (double v))})))))
 
-(defn open-dense
-  "A device handle for `dense` (from `candidates/build-dense`): kernels
-   compiled, distances resident. Close it with `close!`."
-  [{:keys [^floats dist n nc]} & {:keys [device] :or {device :ze:0}}]
+(defn- open-session
+  "A GPU session with the three kernels compiled and `dense`'s distances
+   resident, candidate-major and widened to double."
+  [{:keys [^floats dist n nc]} device]
   (let [n (long n) nc (long nc) total (* n nc)
         sess ((gpu 'make-session) device)]
     (try
@@ -66,10 +68,37 @@
                   (dotimes [c n] (aset buf (+ o c) (double (aget dist (+ (* c nc) q)))))))
               ((gpu 'upload-range!) sess :dist-t buf {:src-element 0 :dst-element (* q0 n) :elements (* k n)})
               (recur (+ q0 k))))))
-      {:sess sess :n n :nc nc :lock (Object.)}
+      sess
       (catch Throwable t ((gpu 'close-session!) sess) (throw t)))))
 
-(defn close! [{:keys [sess]}] ((gpu 'close-session!) sess))
+(defn open-dense
+  "A device handle for `dense` (from `candidates/build-dense`): kernels
+   compiled, distances resident. Close it with `close!`."
+  [dense & {:keys [device] :or {device :ze:0}}]
+  {:sess (atom (open-session dense device)) :dense dense :device device :lock (Object.)
+   :recoveries (atom 0)})
+
+(defn close! [{:keys [sess]}] ((gpu 'close-session!) @sess))
+
+(defn- device-lost?
+  "A Level Zero or OpenCL failure the device does not come back from without a
+   new session: what a suspend and resume, or a driver reset, leaves behind."
+  [^Throwable t]
+  (some #(re-find #"Level Zero error|OpenCL error|CL_OUT_OF_RESOURCES|DEVICE_LOST" (str (.getMessage ^Throwable %)))
+        (take-while some? (iterate #(.getCause ^Throwable %) t))))
+
+(defn- run-passes
+  "Upload the θ-dependent inputs, run the three kernels, download Z, D and the
+   per-block money."
+  [sess n nc aw params cell-value]
+  (let [values {"n" n "nc" nc "blocks" blocks "inv-d0" (aget ^doubles params 0) "nbeta" (aget ^doubles params 1) "bmode" (aget ^doubles params 2)}]
+    ((gpu 'upload!) sess :aw aw)
+    ((gpu 'upload!) sess :params params)
+    ((gpu 'upload!) sess :cell-value cell-value)
+    ((gpu 'invoke!) sess :z {} (scalar-values sess :z values) n)
+    ((gpu 'invoke!) sess :d {} (scalar-values sess :d values) n)
+    ((gpu 'invoke!) sess :m {} (scalar-values sess :m values) (* nc blocks))
+    [((gpu 'download) sess :z) ((gpu 'download) sess :dz) ((gpu 'download) sess :mass)]))
 
 (defn reduce-dense
   "`candidates/reduce-dense` computed by the three kernels: on `handle`'s
@@ -87,15 +116,17 @@
         aw (cand/candidate-weights cand attract alpha)
         [^doubles z ^doubles dz ^doubles mass]
         (if-let [{:keys [sess lock]} handle]
-          (let [values {"n" n "nc" nc "blocks" blocks "inv-d0" (aget params 0) "nbeta" (aget params 1) "bmode" (aget params 2)}]
-            (locking lock
-              ((gpu 'upload!) sess :aw aw)
-              ((gpu 'upload!) sess :params params)
-              ((gpu 'upload!) sess :cell-value cell-value)
-              ((gpu 'invoke!) sess :z {} (scalar-values sess :z values) n)
-              ((gpu 'invoke!) sess :d {} (scalar-values sess :d values) n)
-              ((gpu 'invoke!) sess :m {} (scalar-values sess :m values) (* nc blocks))
-              [((gpu 'download) sess :z) ((gpu 'download) sess :dz) ((gpu 'download) sess :mass)]))
+          (locking lock
+            (try (run-passes @sess n nc aw params cell-value)
+                 (catch Throwable t
+                   (when-not (device-lost? t) (throw t))
+                   ;; one new session and one retry; the evaluation itself is
+                   ;; deterministic, so repeating it changes nothing
+                   (swap! (:recoveries handle) inc)
+                   (binding [*out* *err*] (println "city.sim.device: device lost, reopening:" (.getMessage t)))
+                   (try ((gpu 'close-session!) @sess) (catch Throwable _))
+                   (reset! sess (open-session (:dense handle) (:device handle)))
+                   (run-passes @sess n nc aw params cell-value))))
           (let [z (double-array n) dz (double-array n) mass (double-array (* nc blocks))
                 dist-t (let [t (float-array (* n nc))]
                          (dotimes [c n] (dotimes [q nc] (aset t (+ (* q n) c) (aget dist (+ (* c nc) q)))))
