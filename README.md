@@ -38,7 +38,8 @@ and venue names are removed.
 
 ## Reading
 
-- [`doc/model.md`](doc/model.md) (rendered as `public/model.html`): the model
+- [`doc/model.md`](doc/model.md) (rendered as `public/model.html` by
+  `python3 dev/render_model.py`): the model
   as a joint distribution, its assumptions, the inference and the
   interventions.  Start here.
 - [`doc/architecture.md`](doc/architecture.md): how the code is laid out, how
