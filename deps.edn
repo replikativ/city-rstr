@@ -2,7 +2,7 @@
  :deps {org.clojure/clojure    {:mvn/version "1.12.0"}
         ;; numerics and the kernel compiler (0.2.801 lowers bare unchecked-*
         ;; operators in helper bodies, which the day kernels rely on)
-        org.replikativ/raster  {:mvn/version "0.2.801"}
+        org.replikativ/raster  {:mvn/version "0.2.951"}
         ;; probabilistic programming over forked execution contexts (city.infer);
         ;; 0.1.48 carries the seeded draws and the MCMC replay fix
         org.replikativ/spindel {:mvn/version "0.1.48"}

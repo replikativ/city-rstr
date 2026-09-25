@@ -135,11 +135,10 @@
                 (let [loc (int (aget ep-loc e))
                       h (int (rem (quot (aget ep-minute e) 60) 24))
                       k (int (unchecked-add-int e (- 0 e0)))]
-                  (if (== loc (int 0))
-                    (recur (int (unchecked-add-int e 1)) (int (if (>= hc (int 0)) hc anchor)))
-                    (if (== (int (+ (if (== loc (int 1)) 1 0) (if (>= wj (int 0)) 1 0))) (int 2))
-                      (recur (int (unchecked-add-int e 1)) (int (aget work-cell wj)))
-                      (if (== loc (int 2))
+                  ;; one back edge per iteration (raster lowers an effectful loop
+                  ;; with a single recur): the store episode is an effect-only
+                  ;; branch, then the anchor update
+                  (do (when (== loc (int 2))
                         (let [x1 (long (unchecked-add key (long (unchecked-add-int k 1))))
                               z1 (long (unchecked-add x1 -7046029254386353131))
                               z1 (long (unchecked-multiply (bit-xor z1 (unsigned-bit-shift-right z1 30)) -4658895280553007687))
@@ -151,18 +150,25 @@
                               ;; walk the candidates to the first cumulative share above u
                               target (* u z)
                               ;; if rounding leaves the target past the last increment, the
-                              ;; last candidate with weight; -1 when the cell reaches none
-                              j (int (loop [q (int 0) acc 0.0 last (int -1)]
-                                       (if (>= q (int nc)) last
+                              ;; last candidate with weight; -1 when the cell reaches none.
+                              ;; One exit: the hit rides in a carry and ends the loop at the next test
+                              j (int (loop [q (int 0) acc 0.0 last (int -1) hit (int -1)]
+                                       (if (>= (int (+ (if (>= q (int nc)) 1 0) (if (>= hit (int 0)) 1 0))) (int 1))
+                                           (if (>= hit (int 0)) hit last)
                                            (let [wq (weight (aget cand-att q) (haversine-m lon lat (aget cand-lon q) (aget cand-lat q)) alpha beta d0)
-                                                 acc (+ acc wq)]
-                                             (if (== (int (+ (if (> wq 0.0) 1 0) (if (< target acc) 1 0))) (int 2)) q
-                                                 (recur (int (unchecked-add-int q 1)) acc (int (if (> wq 0.0) q last))))))))]
+                                                 acc2 (+ acc wq)]
+                                             (recur (int (unchecked-add-int q 1)) acc2 (int (if (> wq 0.0) q last))
+                                                    (int (if (> wq 0.0) (if (< target acc2) q -1) -1)))))))]
                           (when (>= j (int 0))
                             (par/atomic-add! visits (int (unchecked-add-int (* j 24) h)) (int 1))
-                            (par/atomic-add! counts 1 (int 1)))
-                          (recur (int (unchecked-add-int e 1)) anchor))
-                        (recur (int (unchecked-add-int e 1)) anchor)))))))))))))
+                            (par/atomic-add! counts 1 (int 1)))))
+                      (recur (int (unchecked-add-int e 1))
+                             ;; home after a home episode, the workplace after a work
+                             ;; episode, otherwise the anchor stays
+                             (int (if (== loc (int 0)) (if (>= hc (int 0)) hc anchor)
+                                      (if (== (int (+ (if (== loc (int 1)) 1 0) (if (>= wj (int 0)) 1 0))) (int 2))
+                                        (aget work-cell wj)
+                                        anchor))))))))))))))
 
 ;; ---- money on the day ---------------------------------------------------------------------
 
@@ -234,11 +240,10 @@
                 (let [loc (int (aget ep-loc e))
                       h (int (rem (quot (aget ep-minute e) 60) 24))
                       k (int (unchecked-add-int e (- 0 e0)))]
-                  (if (== loc (int 0))
-                    (recur (int (unchecked-add-int e 1)) (int (if (>= hc (int 0)) hc anchor)))
-                    (if (== (int (+ (if (== loc (int 1)) 1 0) (if (>= wj (int 0)) 1 0))) (int 2))
-                      (recur (int (unchecked-add-int e 1)) (int (aget work-cell wj)))
-                      (if (== loc (int 2))
+                  ;; one back edge per iteration (raster lowers an effectful loop
+                  ;; with a single recur): the store episode is an effect-only
+                  ;; branch, then the anchor update
+                  (do (when (== loc (int 2))
                         (let [;; class draw, index 100000 + k
                               xc (long (unchecked-add key (long (unchecked-add-int k 100000))))
                               zc (long (unchecked-add xc -7046029254386353131))
@@ -269,14 +274,15 @@
                               lon (aget cell-xy (* anchor 2)) lat (aget cell-xy (unchecked-add-int (* anchor 2) 1))
                               target (* u z)
                               abase (int (* s nc))
-                              j (int (loop [q (int 0) acc 0.0 last (int -1)]
-                                       (if (>= q (int nc)) last
+                              j (int (loop [q (int 0) acc 0.0 last (int -1) hit (int -1)]
+                                       (if (>= (int (+ (if (>= q (int nc)) 1 0) (if (>= hit (int 0)) 1 0))) (int 1))
+                                           (if (>= hit (int 0)) hit last)
                                            (let [wq (weight (aget att3 (unchecked-add-int abase q))
                                                             (haversine-m lon lat (aget cand-xy (* q 2)) (aget cand-xy (unchecked-add-int (* q 2) 1)))
                                                             alpha beta d0)
-                                                 acc (+ acc wq)]
-                                             (if (== (int (+ (if (> wq 0.0) 1 0) (if (< target acc) 1 0))) (int 2)) q
-                                                 (recur (int (unchecked-add-int q 1)) acc (int (if (> wq 0.0) q last))))))))
+                                                 acc2 (+ acc wq)]
+                                             (recur (int (unchecked-add-int q 1)) acc2 (int (if (> wq 0.0) q last))
+                                                    (int (if (> wq 0.0) (if (< target acc2) q -1) -1)))))))
                               cell (int (unchecked-add-int (* (unchecked-add-int abase (int (if (>= j (int 0)) j 0))) 24) h))]
                           (if (== leaked (int 1))
                             (par/atomic-add! counts (unchecked-add-int 5 s) (int 1))
@@ -284,6 +290,11 @@
                               (par/atomic-add! visits3 cell (int 1))
                               (par/atomic-add! revenue3 cell (aget spend3 (unchecked-add-int (* s n) i)))
                               (par/atomic-add! counts 1 (int 1))
-                              (par/atomic-add! counts (unchecked-add-int 2 s) (int 1))))
-                          (recur (int (unchecked-add-int e 1)) anchor))
-                        (recur (int (unchecked-add-int e 1)) anchor)))))))))))))
+                              (par/atomic-add! counts (unchecked-add-int 2 s) (int 1))))))
+                      (recur (int (unchecked-add-int e 1))
+                             ;; home after a home episode, the workplace after a work
+                             ;; episode, otherwise the anchor stays
+                             (int (if (== loc (int 0)) (if (>= hc (int 0)) hc anchor)
+                                      (if (== (int (+ (if (== loc (int 1)) 1 0) (if (>= wj (int 0)) 1 0))) (int 2))
+                                        (aget work-cell wj)
+                                        anchor))))))))))))))

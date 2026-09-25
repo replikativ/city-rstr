@@ -74,10 +74,13 @@ with the same draws for every person.
 raster kernels (`deftm` with `par/map-void!` over persons and `atomic-add!`
 into shared counters).  Run uncompiled they are plain JVM loops, which is how
 the tests exercise them and how the demo runs the economic day.  Compiled
-through raster's GPU backend they run on a Level Zero or OpenCL device; `dev/checks/kernel_device.clj` compares a device
-run with the JVM run and expects identical arrays.  The kernel bodies avoid
-constructs the C emitter does not type: no `and`/`or` (boolean bindings), no
-`Math/max` on integers, integer locals cast explicitly, literals inlined.
+through raster's GPU backend (0.2.951 or later) they run on a Level Zero or
+OpenCL device; `dev/checks/kernel_device.clj` compiles `retail-visits!` and
+`spend-day!` and expects arrays identical to the JVM run.  The kernel bodies
+keep to shapes raster's typed GPU pipeline lowers: no `and`/`or` (boolean
+bindings), no `Math/max` on integers, integer locals cast explicitly, literals
+inlined, one `recur` per loop iteration, and a candidate walk with a single
+exit (the hit rides in a carry).
 
 ## Inference
 
