@@ -12,7 +12,7 @@ the model in [`model.md`](model.md) is computed.
 | synthesis | `city.synth.stuttgart`, `.stuttgart-firms`, `.anchors`, `.retail`, `.segments`, `.timeuse`, `.tripgen`, `city.resolve` | synthetic persons from Zensus marginals; firms from Overture and the employment statistics, with named employers matched by site and name; raked floor area per demand class; diaries reweighted to the trip rate |
 | world | `city.sim.cityworld`, `city.sim.world`, `city.econ.household`, `city.econ.spending` | persons with homes, workplaces and purchasing power; firms with capacity and categories; the great-circle metric |
 | the day | `city.sim.day`, `city.sim.candidates`, `city.sim.kernel`, `city.sim.venues`, `city.sim.network`, `city.econ.day` | diaries, destination choice, visits, money, routing |
-| inference | `city.infer` | the three-class model as a spindel program; importance-sampling and MH drivers |
+| inference | `city.infer`, `city.sim.device` | the three-class model as a spindel program; importance-sampling and MH drivers; the likelihood's expected allocation on a GPU |
 | scenarios | `city.sim.scenario` | interventions on the venue set under the posterior particles |
 | scoring | `city.sim.validate`, `city.econ.validate`, `city.econ.quantities`, `city.econ.report` | simulated quantities against published targets |
 | serving | `city.sim.serve`, `city.sim.publish`, `city.sim.run` | the published run over HTTP (port 8092), and the run's parameter table |
@@ -91,6 +91,11 @@ Each particle is a forked execution context.  The MH kernel re-executes the
 program from the checkpoint of the site it perturbs; `run-segmented` drives it
 with independent chains or with resample-move.  Inference evaluates the exact
 expectation (`reduce-dense`), so the likelihood carries no Monte Carlo noise.
+`fit-posterior :backend :gpu` evaluates that expectation on a GPU instead
+(`city.sim.device`, three kernels in `city.sim.kernel`): about 0.5 s per
+likelihood evaluation on Stuttgart against 3.6 s on the CPU, equal to about
+1e-13 relative, and a short fit with either backend ends in the same chain
+states (`dev/checks/likelihood_stuttgart.clj`).
 
 ## Serving and export
 

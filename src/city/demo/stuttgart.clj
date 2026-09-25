@@ -29,6 +29,7 @@
             [city.econ.spending :as spending]
             [city.infer :as infer]
             [city.sim.candidates :as cand]
+            [city.sim.device :as dev]
             [city.sim.cityworld :as cw]
             [city.sim.day :as d2]
             [city.sim.kernel :as kn]
@@ -137,13 +138,16 @@
 (defn segmented-simulator
   "θ per class → `{:turnover {[district class] eur}}`: the exact expected
    allocation of every class's resident money, the simulator the likelihood
-   evaluates."
-  [{:keys [dense atts spec cell-eur bucket cell-pop districts]}]
-  (let [nb (inc (count districts))]
+   evaluates. With a `:device` handle (`city.sim.device/open-dense`) in the
+   context the allocation runs on the GPU, equal to the CPU's to about 1e-15
+   relative."
+  [{:keys [dense atts spec cell-eur bucket cell-pop districts device]}]
+  (let [nb (inc (count districts))
+        reduce-dense (if device (partial dev/reduce-dense device) cand/reduce-dense)]
     (fn [thetas]
       (reduce (fn [acc s]
-                (let [r (cand/reduce-dense dense (get atts s) (merge spec (get thetas s))
-                                           {:cell-value (get cell-eur s) :bucket bucket :n-buckets nb :cell-pop cell-pop})]
+                (let [r (reduce-dense dense (get atts s) (merge spec (get thetas s))
+                                      {:cell-value (get cell-eur s) :bucket bucket :n-buckets nb :cell-pop cell-pop})]
                   (-> acc
                       (assoc-in [:km s] (/ (:expected-distance-m r) 1000.0))
                       (update :turnover into (for [[i d] (map-indexed vector districts)] [[d s] (aget ^doubles (:bucket r) i)])))))
@@ -158,12 +162,16 @@
    `n` independent random-walk Metropolis–Hastings chains of `iterations`
    single-site moves each, started from prior draws, final states weighted
    uniformly (`city.infer/run-segmented`). An approximate posterior: the
-   chains are short, and the acceptance rate is the only diagnostic recorded."
-  [{:keys [observations] :as ctx} & {:keys [n iterations sigma step-size seed]
-                                      :or {n 48 iterations 30 sigma 0.25 step-size 0.15 seed 1}}]
-  (let [p (step "posterior" #(infer/run-segmented (segmented-simulator ctx) observations
-                                                  :n n :sigma sigma :chains :independent :kernel :random-walk-mh
-                                                  :iterations iterations :step-size step-size :seed seed))]
+   chains are short, and the acceptance rate is the only diagnostic recorded.
+   `:backend :gpu` evaluates the likelihood on the GPU (`city.sim.device`)."
+  [{:keys [observations dense] :as ctx} & {:keys [n iterations sigma step-size seed backend]
+                                           :or {n 48 iterations 30 sigma 0.25 step-size 0.15 seed 1 backend :cpu}}]
+  (let [device (when (= :gpu backend) (dev/open-dense dense))
+        p (try
+            (step "posterior" #(infer/run-segmented (segmented-simulator (assoc ctx :device device)) observations
+                                                    :n n :sigma sigma :chains :independent :kernel :random-walk-mh
+                                                    :iterations iterations :step-size step-size :seed seed))
+            (finally (when device (dev/close! device))))]
     (assoc (dissoc p :priors)
            :label (keyword (format "segmented-rw-mh-independent-n%d-iter%d-sigma-%s" n iterations sigma))
            :by-segment (mapv infer/by-segment (:values p)))))

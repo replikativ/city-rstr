@@ -298,3 +298,81 @@
                                       (if (== (int (+ (if (== loc (int 1)) 1 0) (if (>= wj (int 0)) 1 0))) (int 2))
                                         (aget work-cell wj)
                                         anchor))))))))))))))
+
+;; ---- the likelihood on a device -----------------------------------------------------------
+;;
+;; `candidates/reduce-dense` as three passes with no atomics, so the result does
+;; not depend on scheduling: per cell the normaliser, per cell the weighted
+;; distance, then per candidate the money it receives from every cell. All
+;; read the stored float32 distances, candidate-major here (`dist-t[q·n + c]`,
+;; the transpose of `build-dense`'s rows) so that neighbouring threads read
+;; neighbouring distances in every pass, and A_q^α computed on the host, as
+;; `reduce-dense` does. `params` = [1/d₀ −β βmode] with βmode 1, 2 or 3 for
+;; β = 1, 2, 3 (exact reciprocals, as `reduce-dense`) and 0 for `Math/pow`.
+;; The normaliser and the distance are separate kernels because raster 0.2.951
+;; does not lower a loop that ends in two stores.
+
+(deftm dense-weight
+  "The power kernel's distance factor (1 + d/d₀)^−β, as `reduce-dense` computes it."
+  [d :- Double, inv-d0 :- Double, nbeta :- Double, bmode :- Double] :- Double
+  (let [x (+ 1.0 (* d inv-d0))]
+    (if (== bmode 1.0) (/ 1.0 x)
+        (if (== bmode 2.0) (/ 1.0 (* x x))
+            (if (== bmode 3.0) (/ 1.0 (* x x x)) (Math/pow x nbeta))))))
+
+(deftm dense-cell-totals!
+  "Z_c = Σ_q w_cq for every cell `c`, over the candidates with positive `aw`."
+  [dist-t :- (Array float), aw :- (Array double), params :- (Array double),
+   z :- (Array double), n :- Long, nc :- Long] :- Void
+  (let [inv-d0 (aget params 0) nbeta (aget params 1) bmode (aget params 2)]
+    (par/map-void! c n
+      (loop [q (int 0) t 0.0]
+        (if (< q nc)
+          (let [a (aget aw q)
+                w (if (> a 0.0) (* a (dense-weight (double (aget dist-t (+ (* q n) c))) inv-d0 nbeta bmode)) 0.0)]
+            (recur (unchecked-add-int q 1) (+ t w)))
+          (aset z c t))))))
+
+(deftm dense-cell-distance!
+  "D_c = Σ_q w_cq·d_cq for every cell `c`: with Z_c, the cell's expected
+   distance to the shop it chooses."
+  [dist-t :- (Array float), aw :- (Array double), params :- (Array double),
+   dz :- (Array double), n :- Long, nc :- Long] :- Void
+  (let [inv-d0 (aget params 0) nbeta (aget params 1) bmode (aget params 2)]
+    (par/map-void! c n
+      (loop [q (int 0) s 0.0]
+        (if (< q nc)
+          (let [a (aget aw q)
+                d (double (aget dist-t (+ (* q n) c)))
+                w (if (> a 0.0) (* a (dense-weight d inv-d0 nbeta bmode)) 0.0)]
+            (recur (unchecked-add-int q 1) (+ s (* w d))))
+          (aset dz c s))))))
+
+(deftm dense-candidate-mass!
+  "The money candidate `q` receives from the cells b, b+B, b+2B, … (B =
+   `blocks`), Σ_c v_c·w_cq/Z_c over those with a positive normaliser, into
+   `mass[q·B + b]`; the host adds the blocks in order. Blocks keep the work per
+   thread short (one thread per candidate would walk all 34,650 cells), and
+   the stride keeps neighbouring threads on neighbouring cells. Zero outside
+   the choice set."
+  [dist-t :- (Array float), aw :- (Array double), params :- (Array double),
+   cell-value :- (Array double), z :- (Array double), mass :- (Array double),
+   n :- Long, nc :- Long, blocks :- Long] :- Void
+  (let [inv-d0 (aget params 0) nbeta (aget params 1) bmode (aget params 2)]
+    (par/map-void! t (* nc blocks)
+      (let [q (quot t blocks) b (rem t blocks) a (aget aw q)
+            steps (quot (+ n (- blocks 1)) blocks)]
+        ;; a unit-step counter: raster does not lower a loop that starts at b
+        ;; and steps by `blocks`
+        (loop [k 0 m 0.0]
+          (if (< k steps)
+            (let [c (+ b (* k blocks))
+                  zc (if (< c n) (aget z c) 0.0)
+                  ;; v·(w·(1/Z)), the order `reduce-dense` multiplies in
+                  add (if (> zc 0.0)
+                        (if (> a 0.0)
+                          (* (aget cell-value c) (* (* a (dense-weight (double (aget dist-t (+ (* q n) c))) inv-d0 nbeta bmode)) (/ 1.0 zc)))
+                          0.0)
+                        0.0)]
+              (recur (+ k 1) (+ m add)))
+            (aset mass t m)))))))

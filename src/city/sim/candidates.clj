@@ -117,6 +117,20 @@
 
 ;; ---- the fused reduction: an expected allocation without a CSR --------------------------
 
+(defn candidate-weights
+  "A_q^α for every candidate `q` (firm `cand[q]`), zero for a candidate whose
+   attractiveness is not positive: it is not in the choice set. Shared by
+   `reduce-dense` and its device version (`city.sim.device`), so both start
+   from the same numbers."
+  ^doubles [^ints cand ^doubles attract alpha]
+  (let [alpha (double alpha) nc (alength cand) a (double-array nc)]
+    (dotimes [q nc]
+      (let [x (double (aget attract (aget cand q)))]
+        (aset a q (if (pos? x)
+                    (cond (zero? alpha) 1.0 (= 1.0 alpha) x :else (Math/pow x alpha))
+                    0.0))))
+    a))
+
 (defn reduce-dense
   "The exact kernel's expected allocation, accumulated straight into buckets,
    with no choice table materialised.
@@ -151,14 +165,7 @@
         bmode (long (cond (= 1.0 beta) 1 (= 2.0 beta) 2 (= 3.0 beta) 3 :else 0)) nbeta (- beta)
         neg-inv-lambda (/ -1.0 (double lambda-m))
         bounded? (boolean (and max-m (pos? (double max-m)))) mx (double (or max-m 0.0))
-        ;; attract^α once per candidate; a non-positive attractiveness is out
-        ^doubles aw (let [a (double-array nc)]
-                      (dotimes [q nc]
-                        (let [x (double (aget attract (aget cand q)))]
-                          (aset a q (if (pos? x)
-                                      (cond (zero? alpha) 1.0 (= 1.0 alpha) x :else (Math/pow x alpha))
-                                      0.0))))
-                      a)
+        ^doubles aw (candidate-weights cand attract alpha)
         out (double-array nb)
         row (double-array nc)
         acc (double-array 3)]                     ; allocated, dist-num, dist-den

@@ -62,8 +62,10 @@ inference as a probabilistic program over forked execution contexts, and
 - Node.js and npm for the explorer.
 - About 7 GB of heap for the full city (the `:demo` alias sets `-Xmx7g`); the
   tests need no data and little memory.
-- Optional: a Level Zero or OpenCL GPU to run the day kernels on a device
-  (`dev/checks/kernel_device.clj`).
+- Optional: a Level Zero or OpenCL GPU with about 1.5 GB of memory to run the
+  day kernels and the likelihood on a device (`dev/checks/kernel_device.clj`,
+  `dev/checks/likelihood_device.clj`); `demo/fit-posterior :backend :gpu`
+  uses it for inference.
 
 ## Tests
 
