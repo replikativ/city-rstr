@@ -5,15 +5,16 @@
    its own keys added, so the chain can be run whole (`up!`), resumed from a
    REPL, or stopped after any step:
 
-     (build-world)          people, firms, diaries, choice tables       ~8 min
+     (build-world)          people, firms, diaries, day tables          ~8 min
      (segment-inputs ctx)   three demand classes: floor, money, targets
-     (fit-posterior ctx)    nine kernel numbers from 69 turnovers       ~80 min
-     (money-day ctx θ)      the economic day for every inhabitant       ~50 s
-     (publish! ctx)         a traced weekday, areas, scores, money      ~5 min
-     (scenarios ctx)        interventions under the posterior           ~2 min
+     (fit-posterior ctx)    nine kernel numbers from 69 turnovers       ~70 min on a GPU per seed
+     (money-day ctx θ)      store decisions and the economic day        ~2.5 min
+     (publish! ctx)         the same decisions as a traced weekday,     ~30 min
+                            areas, scores, money
+     (scenarios ctx)        interventions under the posterior           ~10 min
      (export-static! ctx)   the explorer and its data as files
 
-   Memory: the world and its tables take about 5 GB of heap; start the JVM
+   Memory: the world and its tables take about 3 GB of heap; start the JVM
    with -Xmx6g or more. The traced day's routing adds about 1 GB.
 
    Data is not in the repository. Every input is read from `data/derived/`
@@ -70,11 +71,12 @@
 
    Returns a context with
    `:world` the persons and firms, with purchasing power;
-   `:tables` the day's tables (`d2/prepare`) with the exact dense retail table;
+   `:tables` the day's tables (`d2/prepare`), whose store episodes are decided
+   by `store-choices` under the posterior (no store table is built);
    `:grid`, `:dense` (candidate distances), `:attract` (raked retail floor),
    `:spec` (the retail kernel), `:district-of` (Stadtteil → Stadtbezirk),
-   `:spend` (retail potential per person), `:cell-pop`, and
-   `:reference-day` (one untraced weekday, `d2/step-day`)."
+   `:spend` (retail potential per person) and `:cell-pop`. The reference
+   weekday is made by `publish!`, once the store kernels are known."
   [& {:keys [sample seed] :or {sample 1.0 seed 1}}]
   (println "building Stuttgart" (java.util.Date.))
   (step "street graph" #(net/load! :ds net/stuttgart-dataset))
@@ -90,16 +92,15 @@
         grid (d2/grid-spec world)
         firms (:firms world)
         dense (step "candidate distances" #(cand/build-dense grid firms (or (:retail firms) (:storefront firms))))
-        retail-table (step "dense retail table" #(cand/table-dense dense attract spec))
         tables (step "day tables" #(d2/prepare world diaries :net-ds net/stuttgart-dataset :attract attract
                                                :mode-shares cw/mid-2017-stuttgart-modes :kernels kernels
-                                               :retail retail-table))
+                                               :retail d2/store-choices-required))
         ctx {:world world :tables tables :grid grid :dense dense :attract attract :spec spec
              :district-of district-of
              :spend (step "retail potential" #(spending/retail-potential world))
              :cell-pop (cell-population grid (:persons world) (:home-cell tables))
              :seed seed}]
-    (assoc ctx :reference-day (step "reference weekday" #(d2/step-day world tables seed)))))
+    ctx))
 
 ;; ---- three demand classes ------------------------------------------------------------------
 
@@ -155,7 +156,10 @@
 
 ;; ---- the posterior -------------------------------------------------------------------------
 
-(def posterior-file "data/derived/stuttgart-seg-posterior-n48.edn")
+(def posterior-file
+  "The published posterior: two 48 × 200 fits, seeds 1 and 2, pooled
+   (`pool-posteriors`)."
+  "data/derived/stuttgart-seg-posterior-n48-iter200-pooled.edn")
 
 (defn fit-posterior
   "Nine kernel numbers, three per class, from the published turnovers:
@@ -165,7 +169,7 @@
    chains are short, and the acceptance rate is the only diagnostic recorded.
    `:backend :gpu` evaluates the likelihood on the GPU (`city.sim.device`)."
   [{:keys [observations dense] :as ctx} & {:keys [n iterations sigma step-size seed backend]
-                                           :or {n 48 iterations 30 sigma 0.25 step-size 0.15 seed 1 backend :cpu}}]
+                                           :or {n 48 iterations 200 sigma 0.25 step-size 0.15 seed 1 backend :cpu}}]
   (let [device (when (= :gpu backend) (dev/open-dense dense))
         p (try
             (step "posterior" #(infer/run-segmented (segmented-simulator (assoc ctx :device device)) observations
@@ -175,6 +179,20 @@
     (assoc (dissoc p :priors)
            :label (keyword (format "segmented-rw-mh-independent-n%d-iter%d-sigma-%s" n iterations sigma))
            :by-segment (mapv infer/by-segment (:values p)))))
+
+(defn pool-posteriors
+  "Independent fits pooled into one posterior of equally weighted states, the
+   posterior mean recomputed over all of them; each fit's MH summary is kept
+   under `:mh :runs`."
+  [& posteriors]
+  (let [values (vec (mapcat :values posteriors)) n (count values)]
+    (assoc (first posteriors)
+           :values values :n n
+           :weights (vec (repeat n (/ 1.0 n)))
+           :posterior-mean (into {} (for [k (keys (first values))] [k (/ (reduce + (map #(double (get % k)) values)) n)]))
+           :by-segment (vec (mapcat :by-segment posteriors))
+           :mh {:runs (mapv :mh posteriors) :seeds (mapv :seed posteriors)}
+           :label (keyword (str "pooled-" (str/join "+" (map #(name (:label %)) posteriors)))))))
 
 (defn save-posterior! [posterior & {:keys [file] :or {file posterior-file}}]
   (io/make-parents file)
@@ -237,21 +255,34 @@
         (System/arraycopy tot 0 a (* s ncell) ncell)))
     a))
 
+(defn store-choices
+  "Every store episode's class, leakage and venue under `thetas`
+   (`kernel/store-choices!`), on the JVM: `{:diary :choice :max-s :nc}`. The
+   money day and both day functions read these, so a person's trip, visit and
+   spending come from one decision. A venue set other than the baseline's is
+   passed as `:att3`, `:cand-xy` and `:nc`."
+  [{:keys [world tables grid money seed]} thetas & {:keys [att3 cand-xy nc]}]
+  (let [{:keys [cell-xy shares-array]} money
+        att3 (or att3 (:att3 money)) cand-xy (or cand-xy (:cand-xy money)) nc (long (or nc (:nc money)))
+        persons (:persons world) n (:n persons) diaries (:diaries tables)
+        max-s (eday/max-store-episodes diaries)
+        diary (int-array n -1) choice (int-array (* n max-s) -9)]
+    (kn/store-choices! (:ptype tables) (:home-cell tables) (:work persons) (:work-cell tables)
+                       (:type-offsets diaries) (:type-cdf diaries) (:diary-offsets diaries) (:ep-loc diaries)
+                       cell-xy cand-xy att3 (totals3 grid cell-xy cand-xy att3 nc thetas) (params3 thetas) shares-array
+                       (eday/store-ranks diaries) diary choice (long-array [n nc seed (:n grid) max-s]))
+    {:diary diary :choice choice :max-s max-s :nc nc}))
+
 (defn money-day
   "One economic day for every inhabitant under `thetas`, on the JVM:
-   `{:revenue3 :visits3 :counts :nc}`, candidate-indexed with the classes
-   stacked, `[(class·nc + candidate)·24 + hour]`, revenue in cents. A venue set
-   other than the baseline's is passed as `:att3`, `:cand-xy` and `:nc`."
-  [{:keys [world tables grid money seed]} thetas & {:keys [att3 cand-xy nc]}]
-  (let [{:keys [cell-xy shares-array spend3]} money
-        att3 (or att3 (:att3 money)) cand-xy (or cand-xy (:cand-xy money)) nc (long (or nc (:nc money)))
-        persons (:persons world) diaries (:diaries tables)
-        rev (int-array (* 3 nc 24)) vis (int-array (* 3 nc 24)) cnt (int-array 8)]
-    (kn/spend-day! (:ptype tables) (:home-cell tables) (:work persons) (:work-cell tables)
-                   (:type-offsets diaries) (:type-cdf diaries) (:diary-offsets diaries) (:ep-loc diaries) (:ep-minute diaries)
-                   cell-xy cand-xy att3 (totals3 grid cell-xy cand-xy att3 nc thetas) (params3 thetas) shares-array
-                   spend3 rev vis cnt (long-array [(:n persons) nc seed (:n grid)]))
-    {:revenue3 rev :visits3 vis :counts (vec cnt) :nc nc :theta thetas}))
+   `{:revenue3 :visits3 :counts :nc :choices}`, candidate-indexed with the
+   classes stacked, `[(class·nc + candidate)·24 + hour]`, revenue in cents,
+   from `store-choices`. A venue set other than the baseline's is passed as
+   `:att3`, `:cand-xy` and `:nc`."
+  [{:keys [world tables money] :as ctx} thetas & {:as venue-set}]
+  (let [choices (apply store-choices ctx thetas (mapcat identity venue-set))]
+    (assoc (eday/money-from-choices choices (:diaries tables) (:spend3 money) (:n (:persons world)) (:nc choices))
+           :nc (:nc choices) :theta thetas :choices choices)))
 
 ;; ---- publishing ----------------------------------------------------------------------------
 
@@ -264,9 +295,18 @@
   "Trace one weekday for every `stride`-th person on the street and transit
    network, reduce it to areas, score the economy against its published
    targets, and register the run with the simulation server together with the
-   money day under `thetas`. Starts the server when `:port` is given."
-  [{:keys [world tables district-of spend reference-day money seed] :as ctx} thetas & {:keys [stride port] :or {stride 20}}]
+   money day under `thetas`. Starts the server when `:port` is given.
+
+   Every store episode is decided once under `thetas` (`store-choices`): the
+   money day adds up those decisions, and the untraced and traced days send
+   the person to the venue decided, so trips, visits and money agree. The
+   scorecard's retail turnover is the posterior's expected allocation, the
+   quantity the likelihood compares with the published turnovers."
+  [{:keys [world tables district-of spend money seed] :as ctx} thetas & {:keys [stride port] :or {stride 20}}]
   (let [cfg (assoc (select-keys (run/config {}) pub/city-override-keys) :seed seed :days 1 :months 0 :city :stuttgart)
+        day (step "money day" #(money-day ctx thetas))
+        tables (assoc tables :store-choices (assoc (:choices day) :cand (:cand (:dense ctx))))
+        reference-day (step "reference weekday" #(d2/step-day world tables seed))
         published (assoc world :daily-tables tables :day (assoc reference-day :days 1) :city :stuttgart)
         route (serve/routing! {:world published})
         acc (java.util.ArrayList.)
@@ -278,16 +318,20 @@
         areas (step "area aggregates"
                     #(cw/area-aggregates published reference-day (pub/with-access trips) :stride stride
                                          :raster (cw/area-raster (:grid tables) (area-polygons "stadtteil"))))
-        econ (step "economic scores" #(econ-report/scores published tables :args {:by-district district-of :spend spend}))
-        day (step "money day" #(money-day ctx thetas))]
+        expected (let [t (:turnover ((segmented-simulator ctx) thetas))]
+                   (reduce (fn [m [[d _] eur]] (update m d (fnil + 0.0) eur)) {} t))
+        econ (step "economic scores" #(econ-report/scores published tables :args {:by-district district-of :spend spend
+                                                                                  :predicted expected}))]
     (serve/publish! run-key {:world published :areas areas :trips trips :stride stride :econ econ
-                             :config (assoc cfg :sample 1.0 :stride stride :resolved-kernels (:kernels tables) :retail-table :dense
+                             :config (assoc cfg :sample 1.0 :stride stride :resolved-kernels (dissoc (:kernels tables) :retail)
+                                            :store-choice {:kernels :posterior-mean-by-class :theta thetas}
                                             :fixed-routing {:profile-walk-max-m net/profile-walk-max-m :route-jitter net/walk-route-jitter})
                              :money {:cand (:cand (:dense ctx)) :nc (:nc money) :revenue3 (:revenue3 day) :visits3 (:visits3 day)
                                      :classes seg/segments :pi (vec (:pi money)) :theta thetas :seed seed
-                                     :note "one economic day at the posterior-mean kernel; spend per visit pooled by household; leakage and in-commuter spend from the published class balances"}})
+                                     :note "one economic day at the posterior-mean kernel; the same store decisions as the traced day; spend per visit pooled by household; leakage and in-commuter spend from the published class balances"}})
     (when port (serve/start! :port port))
-    (assoc ctx :published {:legs (count trips) :stride stride :areas (count (:areas areas))})))
+    (assoc ctx :tables tables :reference-day reference-day
+           :published {:legs (count trips) :stride stride :areas (count (:areas areas))})))
 
 ;; ---- scenarios -----------------------------------------------------------------------------
 
@@ -458,7 +502,9 @@
   ((requiring-resolve 'city.store/connect!))
   (let [ctx (-> (build-world) segment-inputs money-inputs)
         posterior (or (when-not fit? (load-posterior))
-                      (let [p (fit-posterior ctx)] (save-posterior! p) p))
+                      (let [p (pool-posteriors (fit-posterior ctx :seed 1 :backend :gpu)
+                                               (fit-posterior ctx :seed 2 :backend :gpu))]
+                        (save-posterior! p) p))
         ctx (publish! ctx (posterior-mean posterior) :stride stride :port port)]
     (scenarios ctx posterior)
     (println "DEMO-READY" {:port port :heap-gb (heap-gb)})

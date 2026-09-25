@@ -132,7 +132,7 @@
 (defn- revenue-layer
   "The economic day: per retail venue, this weekday's visits and revenue by
    demand class, annualised. Read off the run's `:money`, which
-   `city.sim.kernel/spend-day!` produced: candidate-indexed arrays with the
+   `city.econ.day/money-from-choices` produced: candidate-indexed arrays with the
    three classes stacked, `[(class·nc + candidate)·24 + hour]`.
 
    Revenue is in euros per year (365 × the day's cents ÷ 100). A venue with

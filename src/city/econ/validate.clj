@@ -124,8 +124,12 @@
    census's own city-wide centrality is 0.964 — Stuttgart is a slight net
    exporter of retail spending. A perfect destination model with no leakage
    should therefore land near 1/0.964 = 1.037. Two omissions partly offset:
-   in-commuter spending is also absent, and would push the other way."
-  [world tables & {:keys [table spend by-district targets]
+   in-commuter spending is also absent, and would push the other way.
+
+   `:predicted`, a map district → euros, replaces the single store kernel's
+   allocation: the Stuttgart demo passes the posterior's expected allocation
+   over the three demand classes, the quantity its likelihood compares."
+  [world tables & {:keys [table spend by-district targets predicted]
                    :or {by-district identity targets (retail/targets)}}]
-  (when-let [pred (sp/turnover-by-district world tables :table table :district-of by-district :spend spend)]
+  (when-let [pred (or predicted (sp/turnover-by-district world tables :table table :district-of by-district :spend spend))]
     (score-rows pred :umsatz-eur targets)))

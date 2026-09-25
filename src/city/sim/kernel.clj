@@ -1,32 +1,29 @@
 (ns city.sim.kernel
-  "The day as raster kernels: every inhabitant, no choice table.
+  "The day's store decisions and the likelihood as raster kernels: every
+   inhabitant, no choice table.
 
-   `day/step-day` is already written as the body of a parallel map over
-   persons, but it samples destinations from a CSR table that is 1.5 GB on
-   Stuttgart and takes seconds to rebuild per θ. On a device the table should
-   not exist: a store episode in cell `c` walks the 3,637 retail candidates, computes each
-   one's weight from coordinates on the spot, and stops where the running sum
-   passes `u · Z_c`. The inputs are ~38,000 coordinate pairs and one number per
-   candidate, under a megabyte, and the work is ~1e9 cheap operations per
-   day, which is milliseconds on a GPU and tens of seconds single-threaded.
+   A choice table for the store kernel is 1 GB per demand class on Stuttgart
+   and seconds to rebuild per θ. Without one, a store episode in cell `c`
+   walks the 3,637 retail candidates, computes each one's weight from
+   coordinates on the spot, and stops where the running sum passes `u · Z_c`.
+   The inputs are ~38,000 coordinate pairs and one number per candidate, under
+   a megabyte.
 
-   Three kernels, all `raster.par/map-void!` over an index with inner loops and
-   `atomic-add!`, the shape `raster.abm.firms.phases` compiles to OpenCL,
-   Vulkan and C. Run uncompiled they are plain JVM loops, which is how they
-   are tested against `step-day` and how the demo runs them.
+   `raster.par/map-void!` over an index with inner loops, the shape raster
+   compiles for a GPU. Run uncompiled they are plain JVM loops, which is how
+   the tests and the demo run them; `dev/checks/kernel_device.clj` and
+   `likelihood_device.clj` compare a device run with the JVM.
 
    - `cell-totals!`: Z_c = Σ_j A_j^α (1 + d_cj/d₀)^−β for every cell.
-   - `retail-visits!`: the retail half of `step-day` for every person. Pick
-     the diary, walk the episodes, keep the anchor, draw the shop, count the
-     visit. Same counter-addressed draws as `day/uniform`, so with the
-     same seed it chooses the SAME shop `step-day` would have chosen from the
-     table, up to the table's float32 distances.
-   - `spend-day!`: the economic day, which adds to the retail day a demand
-     class per store episode, leakage, and money per visit
-     (`city.demo.stuttgart/money-day`).
+   - `store-choices!`: every store episode's demand class, leakage and venue,
+     which the money day, the traced day and the untraced day all read, so a
+     person's trip, visit and spending come from one decision. Same
+     counter-addressed draws as `day/uniform`.
+   - `dense-cell-totals!`, `dense-cell-distance!`, `dense-candidate-mass!`:
+     the likelihood's expected allocation (`city.sim.device`).
 
    Parameters travel in small arrays: `params` = [α β d₀] because `invoke!`
-   scalars are int, float or long, and `dims` = [n nc seed] because a Clojure
+   scalars are int, float or long, and `dims` = [n nc seed ...] because a Clojure
    fn takes at most twenty positional arguments. The compiler hoists the
    `let` that reads them into kernel scalars, so on the device they arrive as
    scalar arguments in the ABI's order.
@@ -84,135 +81,48 @@
                    (+ z (weight (aget cand-att q) (haversine-m lon lat (aget cand-lon q) (aget cand-lat q)) alpha beta d0)))
             (aset totals c z)))))))
 
-(deftm retail-visits!
-  "The retail half of `step-day` for every person `i`.
+;; ---- the store decision ------------------------------------------------------------------
 
-   `visits` is int[nc·24]: candidate index × hour, so it is the table-free
-   analogue of `step-day`'s firm-indexed visits restricted to retail
-   candidates. `counts` is int[2]: [diaries store-visits]."
-  [ptype :- (Array int), home-cell :- (Array int), work :- (Array int), work-cell :- (Array int),
-   type-offsets :- (Array int), type-cdf :- (Array double),
-   diary-offsets :- (Array int), ep-loc :- (Array int), ep-minute :- (Array int),
-   cell-lon :- (Array double), cell-lat :- (Array double),
-   cand-lon :- (Array double), cand-lat :- (Array double), cand-att :- (Array double),
-   totals :- (Array double), params :- (Array double),
-   visits :- (Array int), counts :- (Array int),
-   dims :- (Array long)] :- Void
-  ;; `dims` = [n nc seed]: a Clojure fn takes at most twenty positional
-  ;; arguments and this kernel reads nineteen arrays.
-  (let [alpha (aget params 0) beta (aget params 1) d0 (aget params 2)
-        n (aget dims 0) nc (aget dims 1) seed (aget dims 2)]
-    (par/map-void! i n
-      (let [t (aget ptype i) wj (aget work i) hc (aget home-cell i)]
-        (when (>= (int (+ (if (>= t (int 0)) 1 0) (if (>= hc (int 0)) 1 (if (>= wj (int 0)) 1 0)))) (int 2))
-          ;; Every integer local is cast: under a double element type the
-          ;; walker types an unannotated local as double, and `double ^ ulong`
-          ;; does not compile. raster's ABM kernels do the same.
-          (let [a (int (aget type-offsets t)) b (int (aget type-offsets (unchecked-add-int t 1)))
-                ;; splitmix inlined: raster lowers 64-bit arithmetic inside a
-                ;; kernel body, not inside a helper with integer params (raster#613)
-                ;; stream key splitmix(seed·1000003 + i), then the diary draw splitmix(key + 0)
-                xs (long (unchecked-add (unchecked-multiply (long seed) 1000003) (long i)))
-                zs (long (unchecked-add xs -7046029254386353131))
-                zs (long (unchecked-multiply (bit-xor zs (unsigned-bit-shift-right zs 30)) -4658895280553007687))
-                zs (long (unchecked-multiply (bit-xor zs (unsigned-bit-shift-right zs 27)) -7723592293110705685))
-                key (long (bit-xor zs (unsigned-bit-shift-right zs 31)))
-                z0 (long (unchecked-add key -7046029254386353131))
-                z0 (long (unchecked-multiply (bit-xor z0 (unsigned-bit-shift-right z0 30)) -4658895280553007687))
-                z0 (long (unchecked-multiply (bit-xor z0 (unsigned-bit-shift-right z0 27)) -7723592293110705685))
-                z0 (long (bit-xor z0 (unsigned-bit-shift-right z0 31)))
-                u0 (/ (double (unsigned-bit-shift-right z0 11)) 9007199254740992.0)
-                ;; binary search the type's diary cdf, as step-day does
-                d (int (loop [lo (int a) hi (int (unchecked-add-int b -1))]
-                         (if (>= lo hi) lo
-                             (let [m (int (quot (unchecked-add-int lo hi) 2))]
-                               (if (< u0 (aget type-cdf m)) (recur lo m) (recur (int (unchecked-add-int m 1)) hi))))))
-                e0 (int (aget diary-offsets d)) e1 (int (aget diary-offsets (unchecked-add-int d 1)))
-                start (int (if (>= hc (int 0)) hc (aget work-cell wj)))]
-            (par/atomic-add! counts 0 (int 1))
-            (loop [e (int e0) anchor (int start)]
-              (when (< e e1)
-                (let [loc (int (aget ep-loc e))
-                      h (int (rem (quot (aget ep-minute e) 60) 24))
-                      k (int (unchecked-add-int e (- 0 e0)))]
-                  ;; one back edge per iteration (raster lowers an effectful loop
-                  ;; with a single recur): the store episode is an effect-only
-                  ;; branch, then the anchor update
-                  (do (when (== loc (int 2))
-                        (let [x1 (long (unchecked-add key (long (unchecked-add-int k 1))))
-                              z1 (long (unchecked-add x1 -7046029254386353131))
-                              z1 (long (unchecked-multiply (bit-xor z1 (unsigned-bit-shift-right z1 30)) -4658895280553007687))
-                              z1 (long (unchecked-multiply (bit-xor z1 (unsigned-bit-shift-right z1 27)) -7723592293110705685))
-                              z1 (long (bit-xor z1 (unsigned-bit-shift-right z1 31)))
-                              u (/ (double (unsigned-bit-shift-right z1 11)) 9007199254740992.0)
-                              z (aget totals anchor)
-                              lon (aget cell-lon anchor) lat (aget cell-lat anchor)
-                              ;; walk the candidates to the first cumulative share above u
-                              target (* u z)
-                              ;; if rounding leaves the target past the last increment, the
-                              ;; last candidate with weight; -1 when the cell reaches none.
-                              ;; One exit: the hit rides in a carry and ends the loop at the next test
-                              j (int (loop [q (int 0) acc 0.0 last (int -1) hit (int -1)]
-                                       (if (>= (int (+ (if (>= q (int nc)) 1 0) (if (>= hit (int 0)) 1 0))) (int 1))
-                                           (if (>= hit (int 0)) hit last)
-                                           (let [wq (weight (aget cand-att q) (haversine-m lon lat (aget cand-lon q) (aget cand-lat q)) alpha beta d0)
-                                                 acc2 (+ acc wq)]
-                                             (recur (int (unchecked-add-int q 1)) acc2 (int (if (> wq 0.0) q last))
-                                                    (int (if (> wq 0.0) (if (< target acc2) q -1) -1)))))))]
-                          (when (>= j (int 0))
-                            (par/atomic-add! visits (int (unchecked-add-int (* j 24) h)) (int 1))
-                            (par/atomic-add! counts 1 (int 1)))))
-                      (recur (int (unchecked-add-int e 1))
-                             ;; home after a home episode, the workplace after a work
-                             ;; episode, otherwise the anchor stays
-                             (int (if (== loc (int 0)) (if (>= hc (int 0)) hc anchor)
-                                      (if (== (int (+ (if (== loc (int 1)) 1 0) (if (>= wj (int 0)) 1 0))) (int 2))
-                                        (aget work-cell wj)
-                                        anchor))))))))))))))
+(deftm store-choices!
+  "Every store episode's decision, for every person `i`: the demand class, the
+   leakage, and the venue, the one choice that the money day, the traced day
+   and the untraced day all read (`city.econ.day/money-from-choices`,
+   `city.sim.day/step-day`, `step-day-traces`).
 
-;; ---- money on the day ---------------------------------------------------------------------
-
-(deftm spend-day!
-  "The retail day with money and demand classes, for every person `i`.
-
-   A store episode first draws its class `s` from `pi` (three trip shares,
-   cumulative), then its venue from that class's kernel — `att3`, `totals3`
-   and `params3` hold the three classes stacked, class-major — and the visit
-   carries `spend3[s·n + i]`, the person's spend per visit in that class in
-   cents, into `revenue3[(s·nc + j)·24 + h]`. `visits3` counts the same way.
-   The class draw uses draw index `100000 + k` so the venue draw keeps the
-   index `step-day` uses (`k + 1`) and the two never collide.
-
-   `spend3` is the caller's: a person's annual class potential divided by
-   their expected number of class-`s` store visits in a year, so that summing
-   this day's revenue over 365 seeds reproduces the class potential exactly in
-   expectation. Cents in a 32-bit int: a venue-hour cell would need 21 M € to
-   overflow, and Mitte's largest venue takes about 0.2 M € a day.
+   A store episode first draws its class `s` from `shares` (cumulative trip
+   shares, draw index 100000 + k), then whether the purchase leaves the city
+   (index 200000 + k, residents with a home cell only), then its venue from
+   that class's kernel (index k + 1, as `step-day` draws its other venues):
+   `att3`, `totals3` and `params3` hold the three classes stacked,
+   class-major.
 
    `shares` = [π₀ π₀+π₁ 1 | ℓ_short ℓ_medium ℓ_long]: the cumulative class
-   shares of shopping trips, then the leakage share per class — the
-   probability that a class-s purchase by a resident leaves the city. A
-   leaked episode counts in `counts[5+s]` and places no visit and no money;
-   its draw index is 200000 + k, and it applies to every person with a home
-   cell. In-commuters carry their own `spend3`, sized by the caller from the
-   class's measured net inflow. They too have a home cell, at their entry
-   point on the boundary (`city.sim.cityworld/place-externals!`), so they
-   take the leakage draw as well; that changes nothing as long as no class
-   has both an inflow and a leakage share, which
-   `city.econ.day/class-balances` guarantees.
+   shares of shopping trips, then the leakage share per class. In-commuters
+   have a home cell too, at their entry point on the boundary
+   (`city.sim.cityworld/place-externals!`), so they take the leakage draw as
+   well; that changes nothing as long as no class has both an inflow and a
+   leakage share, which `city.econ.day/class-balances` guarantees.
 
-   `counts` = [diaries store-visits class-short class-medium class-long
-   leaked-short leaked-medium leaked-long].
-   Coordinates are interleaved, `cell-xy[2c]` = lon, `cell-xy[2c+1]` = lat,
-   so the kernel stays within twenty arguments."
+   `store-rank[e]` is episode `e`'s place among its diary's store episodes
+   (`city.econ.day/store-ranks`); a loop carry counting them would do the same,
+   but raster 0.2.951 does not lower an effectful loop with that third carry.
+
+   Out: `diary[i]`, which the caller fills with −1 (a person with no day),
+   the diary drawn, and
+   `choice[i·max-s + r]`, which the caller fills with −9 (no such episode),
+   for the person's r-th store episode: `q·3 + s` for a
+   visit to candidate `q`, `−1 − s` for a leaked purchase and `−4 − s` for an
+   anchor cell that reaches no venue of the class. `dims` = [n nc seed ncell
+   max-s]; coordinates are interleaved, `cell-xy[2c]` = lon,
+   `cell-xy[2c+1]` = lat."
   [ptype :- (Array int), home-cell :- (Array int), work :- (Array int), work-cell :- (Array int),
    type-offsets :- (Array int), type-cdf :- (Array double),
-   diary-offsets :- (Array int), ep-loc :- (Array int), ep-minute :- (Array int),
+   diary-offsets :- (Array int), ep-loc :- (Array int),
    cell-xy :- (Array double), cand-xy :- (Array double),
    att3 :- (Array double), totals3 :- (Array double), params3 :- (Array double), shares :- (Array double),
-   spend3 :- (Array int), revenue3 :- (Array int), visits3 :- (Array int), counts :- (Array int),
+   store-rank :- (Array int), diary :- (Array int), choice :- (Array int),
    dims :- (Array long)] :- Void
-  (let [n (aget dims 0) nc (aget dims 1) seed (aget dims 2) ncell (aget dims 3)]
+  (let [n (aget dims 0) nc (aget dims 1) seed (aget dims 2) ncell (aget dims 3) max-s (aget dims 4)]
     (par/map-void! i n
       (let [t (aget ptype i) wj (aget work i) hc (aget home-cell i)]
         (when (>= (int (+ (if (>= t (int 0)) 1 0) (if (>= hc (int 0)) 1 (if (>= wj (int 0)) 1 0)))) (int 2))
@@ -234,11 +144,13 @@
                                (if (< u0 (aget type-cdf m)) (recur lo m) (recur (int (unchecked-add-int m 1)) hi))))))
                 e0 (int (aget diary-offsets d)) e1 (int (aget diary-offsets (unchecked-add-int d 1)))
                 start (int (if (>= hc (int 0)) hc (aget work-cell wj)))]
-            (par/atomic-add! counts 0 (int 1))
+            ;; d + 1 onto the caller's −1, atomically: raster 0.2.951 on a
+            ;; device drops the episode loop, effects and all, unless the body
+            ;; around it holds an atomic
+            (par/atomic-add! diary i (int (unchecked-add-int d 1)))
             (loop [e (int e0) anchor (int start)]
               (when (< e e1)
                 (let [loc (int (aget ep-loc e))
-                      h (int (rem (quot (aget ep-minute e) 60) 24))
                       k (int (unchecked-add-int e (- 0 e0)))]
                   ;; one back edge per iteration (raster lowers an effectful loop
                   ;; with a single recur): the store episode is an effect-only
@@ -274,23 +186,26 @@
                               lon (aget cell-xy (* anchor 2)) lat (aget cell-xy (unchecked-add-int (* anchor 2) 1))
                               target (* u z)
                               abase (int (* s nc))
+                              ;; the first candidate whose cumulative weight passes u·Z; if
+                              ;; rounding leaves the target past the last increment, the last
+                              ;; candidate with weight; −1 when the cell reaches none.
+                              ;; One exit: the hit rides in a carry and ends the loop at the next test
                               j (int (loop [q (int 0) acc 0.0 last (int -1) hit (int -1)]
                                        (if (>= (int (+ (if (>= q (int nc)) 1 0) (if (>= hit (int 0)) 1 0))) (int 1))
-                                           (if (>= hit (int 0)) hit last)
-                                           (let [wq (weight (aget att3 (unchecked-add-int abase q))
-                                                            (haversine-m lon lat (aget cand-xy (* q 2)) (aget cand-xy (unchecked-add-int (* q 2) 1)))
-                                                            alpha beta d0)
-                                                 acc2 (+ acc wq)]
-                                             (recur (int (unchecked-add-int q 1)) acc2 (int (if (> wq 0.0) q last))
-                                                    (int (if (> wq 0.0) (if (< target acc2) q -1) -1)))))))
-                              cell (int (unchecked-add-int (* (unchecked-add-int abase (int (if (>= j (int 0)) j 0))) 24) h))]
-                          (if (== leaked (int 1))
-                            (par/atomic-add! counts (unchecked-add-int 5 s) (int 1))
-                            (when (>= j (int 0))
-                              (par/atomic-add! visits3 cell (int 1))
-                              (par/atomic-add! revenue3 cell (aget spend3 (unchecked-add-int (* s n) i)))
-                              (par/atomic-add! counts 1 (int 1))
-                              (par/atomic-add! counts (unchecked-add-int 2 s) (int 1))))))
+                                         (if (>= hit (int 0)) hit last)
+                                         (let [wq (weight (aget att3 (unchecked-add-int abase q))
+                                                          (haversine-m lon lat (aget cand-xy (* q 2)) (aget cand-xy (unchecked-add-int (* q 2) 1)))
+                                                          alpha beta d0)
+                                               acc2 (+ acc wq)]
+                                           (recur (int (unchecked-add-int q 1)) acc2 (int (if (> wq 0.0) q last))
+                                                  (int (if (> wq 0.0) (if (< target acc2) q -1) -1)))))))]
+                          ;; an atomic add of code + 9 onto the −9 the caller fills
+                          ;; in: each slot is written once, so this is a store.
+                          ;; raster 0.2.951 drops a plain aset in this branch
+                          ;; on a device, silently
+                          (par/atomic-add! choice (+ (* i max-s) (aget store-rank e))
+                                           (int (+ 9 (if (== leaked (int 1)) (- -1 s)
+                                                          (if (>= j (int 0)) (unchecked-add-int (* j 3) s) (- -4 s))))))))
                       (recur (int (unchecked-add-int e 1))
                              ;; home after a home episode, the workplace after a work
                              ;; episode, otherwise the anchor stays

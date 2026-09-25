@@ -1,6 +1,7 @@
 (ns city.econ.day
-  "Money on the day: the inputs `city.sim.kernel/spend-day!` needs, derived so
-   that a year of simulated days reproduces each person's class potential.
+  "Money on the day: the inputs `city.sim.kernel/store-choices!` needs, derived
+   so that a year of simulated days reproduces each person's class potential,
+   and the day's visits and revenue from its choices (`money-from-choices`).
 
    The day kernel counts a store visit and adds a spend. What makes the spend
    honest is the denominator: a person of type `t` makes, in expectation,
@@ -139,3 +140,61 @@
                                                                  (let [inflow (:inflow-eur (get balances (nth seg/segments s)))]
                                                                    (if (pos? (aget ext-visits s)) (/ inflow (aget ext-visits s)) 0.0))]))
      :external-visits-per-year (vec ext-visits)}))
+
+(defn max-store-episodes
+  "The most store episodes any diary holds: the width of a person's row in
+   `city.sim.kernel/store-choices!`'s choice array."
+  ^long [{:keys [^ints diary-offsets ^ints ep-loc]}]
+  (let [nd (dec (alength diary-offsets))]
+    (loop [d 0 mx 0]
+      (if (= d nd) mx
+          (recur (inc d) (max mx (loop [e (aget diary-offsets d) c 0]
+                                   (if (= e (aget diary-offsets (inc d))) c
+                                       (recur (inc e) (if (= 2 (aget ep-loc e)) (inc c) c))))))))))
+
+(defn store-ranks
+  "int[episodes]: each store episode's place among its diary's store episodes,
+   0, 1, …; −1 for any other episode. `store-choices!` indexes its choices by
+   it, as the day functions do by counting."
+  ^ints [{:keys [^ints diary-offsets ^ints ep-loc]}]
+  (let [out (int-array (alength ep-loc) -1) nd (dec (alength diary-offsets))]
+    (dotimes [d nd]
+      (loop [e (aget diary-offsets d) r 0]
+        (when (< e (aget diary-offsets (inc d)))
+          (if (= 2 (aget ep-loc e))
+            (do (aset out e r) (recur (inc e) (inc r)))
+            (recur (inc e) r)))))
+    out))
+
+(defn money-from-choices
+  "The economic day from `store-choices!`' decisions: `{:revenue3 :visits3
+   :counts}`, candidate-indexed with the classes stacked,
+   `[(class·nc + candidate)·24 + hour]`, revenue in cents, the hour that of the
+   episode's minute. `counts` = [diaries store-visits class-short class-medium
+   class-long leaked-short leaked-medium leaked-long]; an episode whose anchor
+   reaches no venue counts nowhere."
+  [{:keys [^ints diary ^ints choice max-s]} {:keys [^ints diary-offsets ^ints ep-loc ^ints ep-minute]}
+   ^ints spend3 n nc]
+  (let [n (long n) nc (long nc) max-s (long max-s)
+        rev (int-array (* 3 nc 24)) vis (int-array (* 3 nc 24)) cnt (int-array 8)]
+    (dotimes [i n]
+      (let [d (aget diary i)]
+        (when (>= d 0)
+          (aset cnt 0 (inc (aget cnt 0)))
+          (loop [e (aget diary-offsets d) r 0]
+            (when (< e (aget diary-offsets (inc d)))
+              (if (= 2 (aget ep-loc e))
+                (let [code (aget choice (+ (* i max-s) r))]
+                  (cond
+                    (>= code 0)
+                    (let [q (quot code 3) s (rem code 3)
+                          cell (+ (* (+ (* s nc) q) 24) (mod (quot (aget ep-minute e) 60) 24))]
+                      (aset vis cell (inc (aget vis cell)))
+                      (aset rev cell (+ (aget rev cell) (aget spend3 (+ (* s n) i))))
+                      (aset cnt 1 (inc (aget cnt 1)))
+                      (aset cnt (+ 2 s) (inc (aget cnt (+ 2 s)))))
+                    (>= code -3)
+                    (aset cnt (+ 5 (- -1 code)) (inc (aget cnt (+ 5 (- -1 code))))))
+                  (recur (inc e) (inc r)))
+                (recur (inc e) r)))))))
+    {:revenue3 rev :visits3 vis :counts (vec cnt)}))

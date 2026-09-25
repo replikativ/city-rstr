@@ -21,7 +21,7 @@
 
    The paired economic day under the same seed, which the explorer shows as
    visit changes, is run by `city.demo.stuttgart/scenarios` with
-   `city.sim.kernel/spend-day!`.
+   `city.sim.kernel/store-choices!`.
 
    Units: euros per year, km, weights summing to one."
   (:require [city.sim.candidates :as cand]

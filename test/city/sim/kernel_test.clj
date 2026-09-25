@@ -1,10 +1,12 @@
 (ns city.sim.kernel-test
   "The table-free kernels against the table they replace: a draw with the same
-   u must land on the same candidate `pick-from-cdf` lands on, and the person
-   loop must count the visits `step-day`'s retail branch would."
+   u must land on the same candidate `pick-from-cdf` lands on, and the store
+   decisions (`store-choices!`, added up by `econ.day/money-from-choices`) must
+   count the visits `step-day`'s retail branch would."
   (:require [clojure.test :refer [deftest is testing]]
             [city.sim.candidates :as cand]
             [city.sim.day :as d2]
+            [city.econ.day :as eday]
             [city.sim.kernel :as kn]))
 
 (defn- tiny-world [nf seed]
@@ -26,6 +28,37 @@
      :cand-lat (double-array (map #(aget ^doubles (:lat firms) (aget c %)) (range nc)))
      :cand-att (double-array (map #(aget ^doubles attract (aget c %)) (range nc)))
      :n n :nc nc}))
+
+(defn- spend-day
+  "The money day through the store decisions, in the shape the tests read:
+   fills `rev`, `vis` and `cnt` as the economic day's arrays."
+  [ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+   cell-xy cand-xy att3 totals3 params3 shares spend3 ^ints rev ^ints vis ^ints cnt [np nc seed ncell]]
+  (let [diaries {:diary-offsets diary-offsets :ep-loc ep-loc :ep-minute ep-minute}
+        max-s (eday/max-store-episodes diaries)
+        diary (int-array np -1) choice (int-array (* np max-s) -9)
+        _ (kn/store-choices! ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc
+                             cell-xy cand-xy att3 totals3 params3 shares (eday/store-ranks diaries) diary choice (long-array [np nc seed ncell max-s]))
+        m (eday/money-from-choices {:diary diary :choice choice :max-s max-s} diaries spend3 np nc)]
+    (System/arraycopy (:revenue3 m) 0 rev 0 (alength rev))
+    (System/arraycopy (:visits3 m) 0 vis 0 (alength vis))
+    (dotimes [k 8] (aset cnt k (int (nth (:counts m) k))))))
+
+(defn- retail-visits
+  "One demand class with no leakage: the store decisions reduced to the retail
+   day, `visits` by candidate and hour and `counts` = [diaries store-visits]."
+  [ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+   ^doubles cell-lon ^doubles cell-lat ^doubles cand-lon ^doubles cand-lat ^doubles cand-att ^doubles totals ^doubles params
+   ^ints visits ^ints counts [np nc seed]]
+  (let [n (alength cell-lon)
+        rev (int-array (* 3 nc 24)) vis (int-array (* 3 nc 24)) cnt (int-array 8)]
+    (spend-day ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+               (double-array (interleave cell-lon cell-lat)) (double-array (interleave cand-lon cand-lat))
+               (double-array (concat cand-att cand-att cand-att)) (double-array (concat totals totals totals))
+               (double-array (concat params params params)) (double-array [1.0 1.0 1.0 0.0 0.0 0.0])
+               (int-array (* 3 np)) rev vis cnt [np nc seed n])
+    (System/arraycopy vis 0 visits 0 (* nc 24))
+    (aset counts 0 (aget cnt 0)) (aset counts 1 (aget cnt 1))))
 
 (deftest a-table-free-draw-lands-where-the-table-draw-lands
   (doseq [spec [{:alpha 1.0 :beta 2.0 :d0-m 500.0} {:alpha 1.3 :beta 1.6 :d0-m 900.0} {:alpha 0.0 :beta 2.5 :d0-m 300.0}]]
@@ -76,8 +109,8 @@
         work (int-array (map #(if (odd? %) (mod % nc) -1) (range np)))
         work-cell (int-array (map (fn [q] (d2/cell-of (:grid w) (aget cand-lon q) (aget cand-lat q))) (range nc)))
         visits (int-array (* nc 24)) counts (int-array 2)]
-    (kn/retail-visits! ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
-                       cell-lon cell-lat cand-lon cand-lat cand-att totals params visits counts (long-array [np nc 5]))
+    (retail-visits ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+                       cell-lon cell-lat cand-lon cand-lat cand-att totals params visits counts [np nc 5])
     (is (= np (aget counts 0)) "every person has a diary")
     (is (= np (aget counts 1)) "every diary has exactly one store episode")
     (is (= np (reduce + (seq visits))) "one visit counted per store episode")
@@ -89,8 +122,8 @@
         (is (zero? (reduce + (map by-hour [0 1 2 3 4 5 6 7 8 9 11 13 14 15 16 17 19 20 21 22 23]))))))
     (testing "a person with no diary type is skipped, not counted"
       (let [visits2 (int-array (* nc 24)) counts2 (int-array 2)]
-        (kn/retail-visits! (int-array np -1) home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
-                           cell-lon cell-lat cand-lon cand-lat cand-att totals params visits2 counts2 (long-array [np nc 5]))
+        (retail-visits (int-array np -1) home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+                           cell-lon cell-lat cand-lon cand-lat cand-att totals params visits2 counts2 [np nc 5])
         (is (= [0 0] (vec counts2)))))))
 
 (deftest the-money-day-conserves-what-it-counts
@@ -117,8 +150,8 @@
         spend3 (int-array (for [s (range 3) i (range np)] (+ 100 (* 10 s) (mod i 7))))
         run (fn [pi]
               (let [rev (int-array (* 3 nc 24)) vis (int-array (* 3 nc 24)) cnt (int-array 8)]
-                (kn/spend-day! ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
-                               cell-xy cand-xy att3 totals3 params3 (double-array (concat (reductions + pi) [0.0 0.0 0.0])) spend3 rev vis cnt (long-array [np nc 3 n]))
+                (spend-day ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+                               cell-xy cand-xy att3 totals3 params3 (double-array (concat (reductions + pi) [0.0 0.0 0.0])) spend3 rev vis cnt [np nc 3 n])
                 {:rev rev :vis vis :cnt (vec cnt)}))
         {:keys [rev vis cnt]} (run [0.65 0.20 0.15])]
     (is (= np (nth cnt 0))) (is (= np (nth cnt 1)) "one store episode per diary")
@@ -141,8 +174,8 @@
     (testing "leakage removes the visit and the money, and counts it"
       (let [rev (int-array (* 3 nc 24)) vis (int-array (* 3 nc 24)) cnt (int-array 8)
             shares (double-array [0.65 0.85 1.0  1.0 0.0 0.0])]   ; every short-class purchase leaks
-        (kn/spend-day! ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
-                       cell-xy cand-xy att3 totals3 params3 shares spend3 rev vis cnt (long-array [np nc 3 n]))
+        (spend-day ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+                       cell-xy cand-xy att3 totals3 params3 shares spend3 rev vis cnt [np nc 3 n])
         (is (= np (aget cnt 0)))
         (is (pos? (aget cnt 5)) "short-class episodes leaked")
         (is (zero? (aget cnt 2)) "no short-class visit placed")
@@ -159,7 +192,7 @@
     (is (not= (d2/uniform 7 3 0) (d2/uniform 7 3 300000)))))
 
 (deftest the-device-kernel-draws-what-the-jvm-draws
-  ;; retail-visits! inlines the address arithmetic; recomputing every choice
+  ;; store-choices! inlines the address arithmetic; recomputing every choice
   ;; with day/uniform and the same walk must give the identical visit array
   (let [w (tiny-world 30 11) {:keys [cell-lon cell-lat cand-lon cand-lat cand-att n nc]} (inputs w)
         params (double-array [1.0 1.8 600.0]) totals (double-array n)
@@ -170,8 +203,8 @@
         ptype (int-array np) home-cell (int-array (map #(mod (* % 11) n) (range np)))
         work (int-array np -1) work-cell (int-array nc)
         visits (int-array (* nc 24)) counts (int-array 2)
-        _ (kn/retail-visits! ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
-                             cell-lon cell-lat cand-lon cand-lat cand-att totals params visits counts (long-array [np nc seed]))
+        _ (retail-visits ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+                             cell-lon cell-lat cand-lon cand-lat cand-att totals params visits counts [np nc seed])
         expected (int-array (* nc 24))]
     (dotimes [i np]
       (let [c (aget home-cell i)]
@@ -198,7 +231,7 @@
       (let [params (double-array [alpha 1.5 500.0]) totals (double-array n)
             _ (kn/cell-totals! cell-lon cell-lat cand-lon cand-lat att params totals n nc)
             visits (int-array (* nc 24)) counts (int-array 2)]
-        (kn/retail-visits! ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
-                           cell-lon cell-lat cand-lon cand-lat att totals params visits counts (long-array [np nc 9]))
+        (retail-visits ptype home-cell work work-cell type-offsets type-cdf diary-offsets ep-loc ep-minute
+                           cell-lon cell-lat cand-lon cand-lat att totals params visits counts [np nc 9])
         (is (= np (aget counts 1)) (str "α " alpha ": every store episode lands"))
         (is (every? zero? (for [q closed h (range 24)] (aget visits (+ (* q 24) h)))) (str "α " alpha ": no visit at a closed venue"))))))

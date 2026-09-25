@@ -222,7 +222,7 @@ $$
 \begin{cases}
 \ell_k=\text{home} & a\leftarrow\mathrm{home}(i)\\[2pt]
 \ell_k=\text{work},\ i\ \text{employed} & \mathrm{visits}[\mathrm{work}(i),h_k]\mathrel{+}=1;\ \ a\leftarrow\mathrm{cell}(\mathrm{work}(i))\\[2pt]
-\ell_k=\text{store} & j=F^{-1}_{\mathrm{retail}}\bigl(a,\,u(s,i,k{+}1)\bigr);\ \ \mathrm{visits}[j,h_k]\mathrel{+}=1\\[2pt]
+\ell_k=\text{store} & \text{class } c_k,\ \text{leakage, then } j=F^{-1}_{\mathrm{retail},c_k}\bigl(a,\,u(s,i,k{+}1)\bigr)\ \text{(§12)};\ \ \mathrm{visits}[j,h_k]\mathrel{+}=1\\[2pt]
 \ell_k=\text{restaurant} & j=F^{-1}_{\mathrm{food}}\bigl(a,\,u(s,i,k{+}1)\bigr);\ \ \mathrm{visits}[j,h_k]\mathrel{+}=1\\[2pt]
 \text{otherwise} & j=F^{-1}_{\ell_k}\bigl(a,\,u(s,i,k{+}1)\bigr);\ \ \text{a leg, no visit}
 \end{cases}
@@ -235,11 +235,12 @@ The anchor is the entire state: a destination is chosen relative to where the
 person is now, which is home or work. Trips are then routed on the street graph
 only when traces are requested, never inside the likelihood.
 
-In the published run the traced weekday (the trips, people and visits on the
-map) draws shops from one retail kernel at the run's defaults, α = 1, β = 1.6,
-d₀ = 500 m, over all retail candidates.  The economic day of §12 draws them per
-demand class at the posterior mean instead, so the two layers use different
-store kernels.
+Every store episode is decided once (`city.sim.kernel/store-choices!`): its
+demand class, whether the purchase leaves the city, and its venue under that
+class's kernel at the posterior mean (§12).  The economic day adds up those
+decisions, and the untraced and traced days send the person to the venue
+decided, so the trips, the visits and the money on the map describe the same
+day.  A purchase that leaves the city makes no store trip.
 
 ## 7. Money
 
@@ -337,12 +338,18 @@ Inference runs through spindel, one forked execution context per particle:
   weighted uniformly; the diagnostic is the acceptance rate.
 
 **The published posterior is approximate.**  The explorer's scenarios are drawn
-under 48 independent random-walk Metropolis–Hastings chains of 30 single-site
-moves each, started from prior draws, with σ_obs = 0.25 and seed 1
-(`city.demo.stuttgart/fit-posterior`).  Thirty moves in nine dimensions are too
-few to call the chains converged, and no between-chain diagnostic is recorded
-beyond the acceptance rate; the particles are best read as a spread of
-plausible kernels rather than as a calibrated posterior.  The model also
+under two independent runs of 48 random-walk Metropolis–Hastings chains, 200
+single-site moves each, started from prior draws, with σ_obs = 0.25 and seeds 1
+and 2, pooled into 96 equally weighted states
+(`city.demo.stuttgart/fit-posterior`, `pool-posteriors`; evaluated on a GPU,
+`city.sim.device`).  The two runs agree: for every parameter the
+Gelman–Rubin statistic between them, each run's final states taken as one
+sample, is between 0.99 and 1.01.  That compares end points, not histories,
+so it shows the runs forgot their starts without showing how well each chain
+mixed.  The data identify the long-term class's size exponent (α ≈ 1.06 ±
+0.17) and part of the medium class's; the short class's α, every β and every
+d₀ stay close to their priors, so the scenario bands are wide mostly because
+the published turnovers do not constrain distance decay.  The model also
 carries no class-level offset, so non-resident money (clothing turnover in the
 centre that residents alone cannot account for) has to be absorbed by the
 shape of the medium-class kernel.
@@ -521,9 +528,10 @@ totals, so the raking partitions cleanly.  `candidates/reduce-dense` evaluates a
 class without materialising its choice table, and `city.infer/segmented-model`
 is the nine-parameter program with one keyed observe per (district, class).
 
-**Money on the day.**  In the economic day (`city.sim.kernel/spend-day!`) a store
-episode first draws its class with probability \(\pi_s\), then its venue from
-that class's kernel, and carries the person's spend per class visit:
+**Money on the day.**  In the store decisions (`city.sim.kernel/store-choices!`)
+a store episode first draws its class with probability \(\pi_s\), then its venue
+from that class's kernel, and in the economic day (`city.econ.day/money-from-choices`)
+it carries the person's spend per class visit:
 
 $$
 P(\text{class of a store episode}=s)=\pi_s,\qquad

@@ -57,7 +57,7 @@
      1 … 976        the venue of episode k-1 (diaries are far shorter)
      977, 978       diary-mode retention (`p-keep`)
      3001 + leg     route variant of a traced leg
-     100000 + k     demand class of store episode k (`kernel/spend-day!`)
+     100000 + k     demand class of store episode k (`kernel/store-choices!`)
      200000 + k     leakage of store episode k
      300000 + t     workplace attempt t (`cityworld/assign-workplaces-grid!`)
    `kernel.clj` inlines the same arithmetic in its device kernels."
@@ -722,6 +722,25 @@
      :modes (mode-table ps shares)
      :ptype (person-types ps dt) :home-cell home-cell :work-cell work-cell}))
 
+(def store-choices-required
+  "A store table that is not one: tables built with it decide store episodes
+   only through `:store-choices` (`city.sim.kernel/store-choices!`), and a day
+   run without them throws instead of sampling from some other kernel."
+  {:store-choices-required true})
+
+(defn- require-store-choices [{:keys [retail store-choices]}]
+  (when (and (nil? store-choices) (:store-choices-required retail))
+    (throw (ex-info "these tables decide store episodes through :store-choices; pass them" {}))))
+
+(defn- chosen-venue
+  "The firm a person's r-th store episode visits under the store decisions
+   (`city.sim.kernel/store-choices!`), or −1: the purchase left the city, or
+   the anchor reaches no venue of its class. Both day functions read it, so
+   their store trips are the money day's visits."
+  ^long [{:keys [^ints choice ^long max-s ^ints cand]} ^long i ^long r]
+  (let [code (aget choice (+ (* i max-s) r))]
+    (if (neg? code) -1 (aget cand (quot code 3)))))
+
 (defn step-day
   "One weekday for every person, untraced: `{:visits int[nf*24] :counts}`,
    visits by firm and hour. Written as the body of a par/map-void! over
@@ -733,11 +752,12 @@
    visits agree."
   [world tables ^long seed]
   (let [{:keys [retail food diaries ^ints ptype ^ints home-cell ^ints work-cell
-                ^objects cls-table]} tables
+                ^objects cls-table store-choices]} tables
         {:keys [^ints type-offsets ^doubles type-cdf ^ints diary-offsets ^ints ep-loc ^ints ep-minute]} diaries
         ps (:persons world) n (:n ps) ^ints work (:work ps) ^ints attsch (:attsch ps) nf (:n (:firms world))
         visits (int-array (* nf 24))
         counts (long-array n-counts)]
+    (require-store-choices tables)
     (dotimes [i n]
       (let [t (aget ptype i) wj (aget work i)]
         (when (and (>= t 0) (or (>= (aget home-cell i) 0) (>= wj 0)))
@@ -745,30 +765,32 @@
                 e0 (aget diary-offsets d) e1 (aget diary-offsets (inc d))
                 start-cell (if (>= (aget home-cell i) 0) (aget home-cell i) (aget work-cell wj))]
             (aset counts 0 (inc (aget counts 0)))
-            (loop [e e0 anchor start-cell]
+            (loop [e e0 anchor start-cell r 0]
               (when (< e e1)
                 (let [loc (aget ep-loc e) h (mod (quot (aget ep-minute e) 60) 24) k (- e e0)]
                   (cond
-                    (= loc 0) (recur (inc e) (if (>= (aget home-cell i) 0) (aget home-cell i) anchor))
+                    (= loc 0) (recur (inc e) (if (>= (aget home-cell i) 0) (aget home-cell i) anchor) r)
                     (and (= loc 1) (>= wj 0))
                     (do (aset visits (+ (* wj 24) h) (inc (aget visits (+ (* wj 24) h))))
                         (aset counts 1 (inc (aget counts 1)))
-                        (recur (inc e) (aget work-cell wj)))
-                    (= loc 2) (let [v (pick-from-cdf retail anchor (uniform seed i (inc k)))]
+                        (recur (inc e) (aget work-cell wj) r))
+                    (= loc 2) (let [v (if store-choices
+                                        (chosen-venue store-choices i r)
+                                        (pick-from-cdf retail anchor (uniform seed i (inc k))))]
                                 (when (>= v 0)
                                   (aset visits (+ (* v 24) h) (inc (aget visits (+ (* v 24) h))))
                                   (aset counts 2 (inc (aget counts 2))))
-                                (recur (inc e) anchor))
+                                (recur (inc e) anchor (inc r)))
                     (= loc 3) (let [v (pick-from-cdf food anchor (uniform seed i (inc k)))]
                                 (when (>= v 0)
                                   (aset visits (+ (* v 24) h) (inc (aget visits (+ (* v 24) h))))
                                   (aset counts 3 (inc (aget counts 3))))
-                                (recur (inc e) anchor))
+                                (recur (inc e) anchor r))
                     ;; work-or-school without a workplace: a school only for
                     ;; someone actually in school. A resident whose job is
                     ;; outside the district has no destination here — that trip
                     ;; needs the city-wide world, not a local venue.
-                    (and (= loc 1) (not= 1 (aget attsch i))) (recur (inc e) anchor)
+                    (and (= loc 1) (not= 1 (aget attsch i))) (recur (inc e) anchor r)
                     :else
                     (let [tbl (aget cls-table loc)]
                       (when tbl
@@ -777,7 +799,7 @@
                           (if (>= v 0)
                             (aset counts c (inc (aget counts c)))
                             (aset counts no-venue-count (inc (aget counts no-venue-count))))))
-                      (recur (inc e) anchor))))))))))
+                      (recur (inc e) anchor r))))))))))
     {:visits visits :counts (zipmap count-names (seq counts))}))
 
 (defn- trace-type [^ints labour ^ints attsch ^long i]
@@ -915,7 +937,7 @@
         p-keep (double p-keep)
         route-variants (max 1 (long route-variants))
         {:keys [retail food diaries ^ints ptype ^ints home-cell ^ints work-cell
-                ^objects cls-table ^objects cls-lon ^objects cls-lat modes]} tables
+                ^objects cls-table ^objects cls-lon ^objects cls-lat modes store-choices]} tables
         {:keys [^ints type-offsets ^doubles type-cdf ^ints diary-offsets
                 ^ints ep-loc ^ints ep-minute ^ints ep-depart ^ints ep-arrive ^ints ep-mode]} diaries
         ps (:persons world) n (:n ps) ^ints work (:work ps)
@@ -931,6 +953,7 @@
         leg-stats (volatile! {})
         moved? (fn [^double alon ^double alat ^double blon ^double blat]
                  (or (> (Math/abs (- alon blon)) 1.0e-7) (> (Math/abs (- alat blat)) 1.0e-7)))]
+    (require-store-choices tables)
     (dotimes [i n]
       (let [t (aget ptype i) wj (aget work i)]
         (when (and (>= t 0) (or (>= (aget home-cell i) 0) (>= wj 0)))
@@ -974,7 +997,7 @@
                                (doseq [sl subs] (.add legs sl)))))]
             (vswap! diary-number inc)
             (aset counts 0 (inc (aget counts 0)))
-            (loop [e e0 anchor start-cell plon (double base-lon) plat (double base-lat)]
+            (loop [e e0 anchor start-cell plon (double base-lon) plat (double base-lat) r 0]
               (if-not (< e e1)
                 nil
                 (let [loc (aget ep-loc e) minute (aget ep-minute e)
@@ -983,13 +1006,13 @@
                   (cond
                     (= loc 0)
                     (do (add-leg! plon plat base-lon base-lat "home" dep arr (aget ep-mode e))
-                        (recur (inc e) (if home? (aget home-cell i) anchor) (double base-lon) (double base-lat)))
+                        (recur (inc e) (if home? (aget home-cell i) anchor) (double base-lon) (double base-lat) r))
 
                     (and (= loc 1) (>= wj 0))
                     (do (aset visits (+ (* wj 24) h) (inc (aget visits (+ (* wj 24) h))))
                         (aset counts 1 (inc (aget counts 1)))
                         (add-leg! plon plat (aget flon wj) (aget flat wj) "work" dep arr (aget ep-mode e))
-                        (recur (inc e) (aget work-cell wj) (aget flon wj) (aget flat wj)))
+                        (recur (inc e) (aget work-cell wj) (aget flon wj) (aget flat wj) r))
 
                     ;; an out-commuter's workplace is outside the city, so the
                     ;; modelled leg runs to the boundary on the side they leave
@@ -1000,16 +1023,20 @@
                     (and (= loc 1) (= 1 (aget outside i)) (not (Double/isNaN (aget xlon i))))
                     (do (aset counts 1 (inc (aget counts 1)))
                         (add-leg! plon plat (aget xlon i) (aget xlat i) "work" dep arr (aget ep-mode e))
-                        (recur (inc e) anchor (aget xlon i) (aget xlat i)))
+                        (recur (inc e) anchor (aget xlon i) (aget xlat i) r))
 
+                    ;; with the store decisions, a leaked purchase or an
+                    ;; unreachable class makes no trip, as it makes no visit
                     (= loc 2)
-                    (let [v (pick-from-cdf retail anchor (uniform seed i (inc k)))]
+                    (let [v (if store-choices
+                              (chosen-venue store-choices i r)
+                              (pick-from-cdf retail anchor (uniform seed i (inc k))))]
                       (if (>= v 0)
                         (do (aset visits (+ (* v 24) h) (inc (aget visits (+ (* v 24) h))))
                             (aset counts 2 (inc (aget counts 2)))
                             (add-leg! plon plat (aget flon v) (aget flat v) "store" dep arr (aget ep-mode e))
-                            (recur (inc e) anchor (aget flon v) (aget flat v)))
-                        (recur (inc e) anchor plon plat)))
+                            (recur (inc e) anchor (aget flon v) (aget flat v) (inc r)))
+                        (recur (inc e) anchor plon plat (inc r))))
 
                     (= loc 3)
                     (let [v (pick-from-cdf food anchor (uniform seed i (inc k)))]
@@ -1017,21 +1044,21 @@
                         (do (aset visits (+ (* v 24) h) (inc (aget visits (+ (* v 24) h))))
                             (aset counts 3 (inc (aget counts 3)))
                             (add-leg! plon plat (aget flon v) (aget flat v) "restaurant" dep arr (aget ep-mode e))
-                            (recur (inc e) anchor (aget flon v) (aget flat v)))
-                        (recur (inc e) anchor plon plat)))
+                            (recur (inc e) anchor (aget flon v) (aget flat v) r))
+                        (recur (inc e) anchor plon plat r)))
 
                     ;; see step-day: no workplace and not in school → no destination
                     (and (= loc 1) (not= 1 (aget attsch i)))
-                    (recur (inc e) anchor plon plat)
+                    (recur (inc e) anchor plon plat r)
 
                     :else
                     (let [tbl (aget cls-table loc)]
                       (if (nil? tbl)
-                        (recur (inc e) anchor plon plat)
+                        (recur (inc e) anchor plon plat r)
                         (let [v (pick-from-cdf tbl anchor (uniform seed i (inc k)))]
                           (if (neg? v)
                             (do (aset counts no-venue-count (inc (aget counts no-venue-count)))
-                                (recur (inc e) anchor plon plat))
+                                (recur (inc e) anchor plon plat r))
                             (let [vlon (aget ^doubles (aget cls-lon loc) v)
                                   vlat (aget ^doubles (aget cls-lat loc) v)
                                   c (if (= loc 1) school-count loc)]
@@ -1039,7 +1066,7 @@
                               (add-leg! plon plat vlon vlat
                                         (if (= loc 1) "school" (purpose-of-loc loc))
                                         dep arr (aget ep-mode e))
-                              (recur (inc e) anchor vlon vlat))))))))))
+                              (recur (inc e) anchor vlon vlat r))))))))))
             (when (and trace? (pos? (.size legs)))
               (let [tr {:type (trace-type labour attsch i) :person i :legs (vec legs)}]
                 (if trace-fn (trace-fn tr) (conj! traces tr))))))))

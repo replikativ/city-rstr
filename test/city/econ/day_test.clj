@@ -38,7 +38,7 @@
     (is (= 5 (count (distinct ids))) "an in-commuter is its own household")))
 
 (deftest a-class-has-an-inflow-or-a-leakage-never-both
-  ;; spend-day! applies the leakage draw to in-commuters too (they have a
+  ;; store-choices! applies the leakage draw to in-commuters too (they have a
   ;; home cell at the boundary); that is harmless only because a class that
   ;; draws money in leaks none
   (let [tg {"A" {:short {:umsatz-eur 90.0 :kaufkraft-eur 100.0}

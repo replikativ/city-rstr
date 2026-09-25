@@ -26,13 +26,13 @@ Where each section of [`model.md`](model.md) is computed:
 | §1 persons from marginals | `city.synth.stuttgart` |
 | §2 workplaces and commuting | `city.sim.cityworld/assign-workplaces-grid!`, `place-externals!`, `place-out-commuters!` |
 | §3 attractiveness | `city.synth.retail/attract`, per class `city.synth.segments/attract-by-segment` |
-| §4 destination choice | `city.sim.candidates` (store, exact), `city.sim.day/gravity-table` (other classes, top-K) |
+| §4 destination choice | `city.sim.kernel/store-choices!` (store, per demand class, exact), `city.sim.day/gravity-table` (other classes, top-K) |
 | §5 diaries | `city.synth.timeuse`, `city.synth.tripgen` |
 | §6 the day | `city.sim.day/step-day`, `step-day-traces`; `city.sim.day/uniform` for the draws |
 | §7 money | `city.econ.household`, `city.econ.spending` |
 | §8, §9 likelihood and posterior | `city.demo.stuttgart/segmented-simulator`, `city.infer/run-segmented` |
 | §10 interventions | `city.sim.scenario` |
-| §12 money on the day | `city.econ.day`, `city.sim.kernel/spend-day!` |
+| §12 money on the day | `city.sim.kernel/store-choices!`, `city.econ.day/money-from-choices` |
 
 ## Data flow
 
@@ -49,7 +49,7 @@ data/raw, data/derived ──► synthesis ──► world ──► the day ─
 The world is built once per process and held in memory, about 5 GB for the
 whole city with its choice tables.  Apart from the input files and the
 evidence store, the only thing persisted between processes is the posterior
-(`data/derived/stuttgart-seg-posterior-n48.edn`).
+(`data/derived/stuttgart-seg-posterior-n48-iter200-pooled.edn`).
 
 ## Representation
 
@@ -70,17 +70,22 @@ with the same draws for every person.
 
 ## The day on a device
 
-`city.sim.kernel` states the retail part of the day, and the economic day, as
-raster kernels (`deftm` with `par/map-void!` over persons and `atomic-add!`
-into shared counters).  Run uncompiled they are plain JVM loops, which is how
-the tests exercise them and how the demo runs the economic day.  Compiled
-through raster's GPU backend (0.2.951 or later) they run on a Level Zero or
-OpenCL device; `dev/checks/kernel_device.clj` compiles `retail-visits!` and
-`spend-day!` and expects arrays identical to the JVM run.  The kernel bodies
-keep to shapes raster's typed GPU pipeline lowers: no `and`/`or` (boolean
-bindings), no `Math/max` on integers, integer locals cast explicitly, literals
-inlined, one `recur` per loop iteration, and a candidate walk with a single
-exit (the hit rides in a carry).
+`city.sim.kernel/store-choices!` decides every store episode of the day: its
+demand class, its leakage and its venue under the class's kernel.  The money
+day (`city.econ.day/money-from-choices`), the untraced day and the traced day
+(`city.sim.day/step-day`, `step-day-traces`, through `:store-choices` in the
+tables) all read those decisions, so trips, visits and money agree; the
+Stuttgart tables carry no store table at all, and a day run without the
+decisions throws.  Run uncompiled the kernels are plain JVM loops, which is
+how the tests exercise them and how the demo runs them.  Compiled through
+raster's GPU backend (0.2.951 or later) they run on a Level Zero or OpenCL
+device; `dev/checks/kernel_device.clj` compiles `store-choices!` and expects
+arrays identical to the JVM run.  The kernel bodies keep to shapes raster's
+typed GPU pipeline lowers: no `and`/`or` (boolean bindings), no `Math/max` on
+integers, integer locals cast explicitly, literals inlined, one `recur` per
+loop iteration and at most two loop carries, a candidate walk with a single
+exit (the hit rides in a carry), and atomic adds rather than plain stores
+around and inside the episode loop.
 
 ## Inference
 
