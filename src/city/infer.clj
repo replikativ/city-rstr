@@ -120,8 +120,14 @@
    `summarise` needs nothing new; `run-segmented` regroups it per class
    before calling the simulator, which must return
    `{:turnover {[district class] eur} …}` keyed like `observations`.
-   Sites are keyed `:short/alpha`, `:obs/Mitte|medium`, and so on."
-  [simulate observations sigma priors & [{:keys [levels]}]]
+   Sites are keyed `:short/alpha`, `:obs/Mitte|medium`, and so on.
+
+   `:distance {:km x :sigma s :weights {class w}}` adds one observe: the
+   trip-share-weighted mean of the simulator's expected straight-line shopping
+   distance per class (`:km`, in km) against `x`. As at `turnover-model`,
+   converting a surveyed door-to-door distance to that quantity is the
+   caller's, stated."
+  [simulate observations sigma priors & [{:keys [levels distance]}]]
   (let [keys* (vec (sort (keys observations)))
         [a0 a1] (:alpha priors) [b0 b1] (:beta priors) [l0 l1] (:log-d0 priors)
         level-sd (when levels (double levels))]
@@ -156,6 +162,9 @@
                        (Math/log (double (observations k)))
                        :id (keyword "obs" (str d "|" (name s))))
               (recur (rest ks)))))
+        (when distance
+          (let [km-hat (reduce + (map (fn [[s w]] (* (double w) (double (get-in y [:km s])))) (:weights distance)))]
+            (observe (ar/normal km-hat (double (:sigma distance))) (double (:km distance)) :id :obs/shop-km)))
         th))))
 
 (defn by-segment
@@ -324,9 +333,9 @@
   [simulate observations & {:as opts}]
   (let [{:keys [sigma priors levels] :or {sigma 0.25 priors default-priors}} opts]
     (infer-with (fn [sim] (segmented-model (fn [flat] (sim (by-segment flat))) observations sigma priors
-                                           {:levels levels}))
+                                           {:levels levels :distance (:distance opts)}))
                 simulate (assoc opts :sigma sigma :priors priors)
-                {:observations (count observations) :segmented true :levels levels})))
+                {:observations (count observations) :segmented true :levels levels :distance (:distance opts)})))
 
 (defn synthetic-observations
   "What the simulator says at a known θ*, for recovery tests: fit to this and
