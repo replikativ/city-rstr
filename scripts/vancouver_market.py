@@ -12,14 +12,11 @@ from pathlib import Path
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import read, write_json
+from scripts.diary_clock import phase_period
 from scripts.vancouver_cityday import receipts, xy
 from scripts.vancouver_streets import walk_graph
 from scripts.vancouver_grocery import BUDGET, SHARE, SPEED, YEAR, read_inventory
-
-
-def read(path):
-    return json.loads(path.read_text())
 
 
 def market_weekday(root, fitted_atlas=None):
@@ -126,6 +123,7 @@ def workplace_inputs(root, atlas, day, street, preserve_modes=False, tract_relea
 
 def gather(atlas, day, atlas_dir, day_dir, clock=None, share=SHARE, continuous=False):
     options = [windows(d, t) for d, t in zip(atlas["templates"], day["templates"], strict=True)]
+    phases = phase_period() if continuous else ()
     offset = 0
     for d, da in enumerate(day["das"]):
         roster = read(atlas_dir / (da + ".json"))
@@ -139,8 +137,7 @@ def gather(atlas, day, atlas_dir, day_dir, clock=None, share=SHARE, continuous=F
             template = person[-1]
             for slot, start, dwell, a, b, first, second in options[template]:
                 if continuous:
-                    # Roster order and within-bin phase match city.vancouver.diary-clock.
-                    start += 5 * (((offset + i + 1) * 7919 % 10007) + 0.5) / 10007 - 2.5
+                    start += phases[(offset + i) % len(phases)]
                 chosen = grocery_draw(da, i + 1, slot, share)
                 income = 4 if person[3] is None else bisect_right((30000, 60000, 100000), person[3])
                 yield (d, i, slot, start, dwell, income, template, a, b, plan[a], plan[b],

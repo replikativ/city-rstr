@@ -5,11 +5,9 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+from scripts.artifacts import pointer, read
 from scripts.vancouver_city_transit import DirectService
 from scripts.vancouver_flexible_transit import WORKPLACE_RUN
-from scripts.vancouver_region import read
-from scripts.vancouver_street_scenarios import PERSONAL_TRANSIT, publish_index
-from scripts.vancouver_transit_commutes import pointer
 from scripts.vancouver_transit_load import ANNUAL_TABLE, TABLE, BusSpaces, bus_capacity_profile, bus_load_evidence, ride_legs
 from scripts.vancouver_work_transit import GTFS_SOURCE, match_windows, outing_rides, prepare_windows, publish_rides
 
@@ -120,9 +118,8 @@ def publish(region, archive, run):
     info = dict(versions=versions, workplaceRun=run, serviceDate=manifest["date"], gtfsSource=GTFS_SOURCE,
                 eligible=len(rows), excluded=inputs["excluded"], outcomes=outcomes, purposes=purposes,
                 examples=purpose_examples(assigned), bus=bus, shared=reserved)
-    release = publish_rides(region, day, matched, info, family=PERSONAL_TRANSIT)
-    publish_index(region, PERSONAL_TRANSIT, release)
-    pointer(region / PERSONAL_TRANSIT / (key + ".json"), {"version": release})
+    release = publish_rides(region, day, matched, info, family="personal-transit")
+    pointer(region / "personal-transit" / (key + ".json"), {"version": release})
     print(release, "matched", len(matched), "across", len(info["coverage"]["areas"]), "areas", outcomes, purposes, flush=True)
 
 

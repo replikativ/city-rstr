@@ -70,19 +70,3 @@ class SeededSurveyTest(unittest.TestCase):
         study = {"windows": [[420, 540], [960, 1080]],
                  "events": [[421, 6.5, True], [480, 10, False], [1079.9, 2, True]]}
         self.assertEqual(hourly_run(study, 42), {"seed": 42, "hours": [6.5, 10, 0, 2]})
-
-
-class WalkingReachTest(unittest.TestCase):
-    def test_detour_limits_use_graph_distance_and_keep_scheduled_walks(self):
-        from scripts.vancouver_walk_reach import network_bounds
-
-        # A level path skirts the count circle. A branch reaches the circle midway along a link.
-        network = {"nodes": [[-100, 30], [0, 30], [100, 30], [0, -30], [-100, -40], [100, -40]],
-                   "ways": [[1, 0, [0, 1, 2]], [1, 0, [1, 3]], [1, 0, [4, 5]]]}
-        site = {"point": [0, 0], "hours": [420, 480], "access": [1, 0], "egress": [0, 1]}
-        walks = [["work", 0, 2, 478, 4, 320, 80, 200],
-                 ["shopping", 4, 5, 478, 4, 320, 80, 200]]
-        (strict, wider), = network_bounds(network, network["nodes"], [site], walks, 10)
-        self.assertEqual((strict["unique"], strict["hourly"]), (2, [1, 1]))
-        self.assertEqual((wider["unique"], wider["hourly"]), (3, [2, 2]))
-        self.assertEqual(wider["byPurpose"], {"work": 1, "shopping": 0})

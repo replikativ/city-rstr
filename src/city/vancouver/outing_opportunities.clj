@@ -1,7 +1,7 @@
 (ns city.vancouver.outing-opportunities
   "Locate uninterrupted at-home discretionary time in existing resident diaries."
   (:require [city.vancouver.departures :refer [read-json]]
-            [city.vancouver.trip-demand :refer [visit-residents!]]
+            [city.vancouver.roster :as roster]
             [clojure.data.json :as json]
             [clojure.java.io :as io]))
 
@@ -56,7 +56,7 @@
         adults (java.util.ArrayList.)
         adult-counts (volatile! {})
         home-loops (java.util.ArrayList.)]
-    (visit-residents! atlas-dir day-dir atlas (filter #(contains? home-groups %) das)
+    (roster/visit-private! atlas-dir day-dir atlas (filter #(contains? home-groups %) das)
       (fn [da i [age _ _ _ _ _ _ template] home plan]
         (let [[original revised] (get-in changes [da i] [template template])]
           (when (not= original template)

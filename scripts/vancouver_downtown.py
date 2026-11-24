@@ -6,6 +6,7 @@ import math
 
 import numpy as np
 
+from scripts.diary_clock import phase_period
 from scripts.vancouver_transit_load import ride_legs
 
 STATIONS = {"Burrard Station", "Granville Station", "Stadium-Chinatown Station", "Waterfront Station",
@@ -74,7 +75,8 @@ def station_counts(table, transit, manifest, by_da, *, by_origin=False):
 
 def shared_minute_offset(agent):
     """Observe the shared regional diary phase at a whole minute."""
-    return math.ceil(5 * (((agent + 1) * 7919 % 10007) + 0.5) / 10007 - 2.5)
+    phases = phase_period()
+    return math.ceil(phases[agent % len(phases)])
 
 
 def resident_flows(day_dir, atlas_dir, places, *, workplace_ends=False, shared_clock=False):

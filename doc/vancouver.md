@@ -1250,6 +1250,8 @@ The street view also shows reconstructed short walks, home-to-home recreation wa
 
 The street lookup stores route bounds and movement times for the published scenarios. It loads the original resident and route only if the lookup intersects the player's surroundings. Transit lookups use the timetable and published walking durations. They carry a distance bound for each access or egress walk and the mapped path bounds for transfers. Discretionary road trips use the same route budgets and free-flow driving profile as the resident replay. The Clojure diary index and the scenario occupancy releases retain their original resident identities and count definitions. Street links pin the active movement releases alongside the location and simulation time. [Explore a school walking group at 08:55](http://127.0.0.1:8187/cityday.html?coverage=region&workplaceRun=06c504c638de40f775a7&workTransit=9cec79f1fec091af7db6&schoolRun=1813a113cd76855c266f&street=walk&at=-123.028586,49.313173,0&minute=535)
 
+The retired street workbench used the following index builder. This command and its inputs are documented at revision `ebaecc1`.
+
 ```sh
 python -m scripts.vancouver_street_scenarios
 ```
@@ -1622,6 +1624,7 @@ python -m scripts.vancouver_diary_weekday ../Simulations/city 5a9289c6bc981c54b7
 python -m scripts.vancouver_diary_weekday ../Simulations/city 5a9289c6bc981c54b70d --preserve-modes --capacity --transfers --tract-release 12abe0a44946315de998 --reuse-riders-from bd42387cb0e4438bbb7b
 clojure -M -m city.vancouver.atlas-diaries ../Simulations/city --shopping-comparison > target/vancouver-lunch-diaries.json
 python -m scripts.vancouver_lunch_walks ../Simulations/city 5ab7efac0ffa7e618e13 target/vancouver-lunch-diaries.json
+# Archived municipal walk-reach diagnostic, run from revision ebaecc1.
 python -m scripts.vancouver_walk_reach 5ab7efac0ffa7e618e13 --network
 ```
 

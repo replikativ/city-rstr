@@ -1,21 +1,12 @@
 (ns city.vancouver.trip-demand
   "Count weekday diary bouts by the resident's home zone, primary mode and destination purpose."
-  (:require [city.vancouver.departures :refer [read-json]]
+  (:require [city.vancouver.roster :as roster]
+            [city.vancouver.departures :refer [read-json]]
             [city.vancouver.survey-zones :refer [adult-fifths]]
             [clojure.data.json :as json]
             [clojure.java.io :as io]))
 
-(defn visit-residents!
-  "Visit private-household residents and their full plans in the selected DAs."
-  [atlas-dir day-dir atlas das visit!]
-  (doseq [da das]
-    (let [file (str da ".json")
-          people (get (read-json (io/file atlas-dir file)) "people")
-          {:strs [home plans]} (read-json (io/file day-dir file))]
-      (when-not (= (count home) (count plans) (count people))
-        (throw (ex-info "Resident and location rosters differ" {:da da})))
-      (dotimes [i (get-in atlas ["das" da "private"])]
-        (visit! da i (people i) (home i) (plans i))))))
+(def visit-residents! roster/visit-private!)
 
 (defn -main [atlas-dir day-dir input output]
   (let [atlas (read-json (io/file atlas-dir "atlas.json"))

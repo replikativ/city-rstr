@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from scripts.diary_clock import phase_period
 from scripts.vancouver_downtown import resident_flows
 
 
@@ -53,8 +54,7 @@ class RegionalClockTest(unittest.TestCase):
             population += atlas["das"][da]["population"]
         self.assertEqual(population, run["population"])
 
-        def expected_phase(agent):
-            return 5 * (((agent + 1) * 7919 % 10007) + .5) / 10007 - 2.5
+        phases = phase_period()
 
         starts = set()
         for hour, digest in enumerate(index["hours"]):
@@ -62,7 +62,7 @@ class RegionalClockTest(unittest.TestCase):
                 start = leg["times"][0]
                 if hour * 60 <= start < (hour + 1) * 60 and start != 240:
                     source = round(start / 5) * 5
-                    self.assertAlmostEqual(start - source, expected_phase(leg["agent"]))
+                    self.assertAlmostEqual(start - source, phases[leg["agent"] % len(phases)])
                     starts.add(round(start % 5, 3))
         self.assertGreater(len(starts), 1000)
 
@@ -73,4 +73,4 @@ class RegionalClockTest(unittest.TestCase):
         for before, after in zip(original, continuous):
             d, person = after[:2]
             self.assertEqual(before[:3], after[:3])
-            self.assertAlmostEqual(after[3] - before[3], expected_phase(offsets[d] + person))
+            self.assertAlmostEqual(after[3] - before[3], phases[(offsets[d] + person) % len(phases)])

@@ -11,14 +11,12 @@ import tempfile
 
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, pointer, read, write_json
 from scripts.vancouver_city_transit import assign, publish_walks
 from scripts.vancouver_mobility import PRIORITY, REPORT
 from scripts.vancouver_pedestrians import verify_routes
-from scripts.vancouver_region import package, read
-from scripts.vancouver_street_scenarios import CITY_TRANSIT, publish_index
 from scripts.vancouver_transit import build as build_timetable
-from scripts.vancouver_transit_commutes import BOARDING_MARGIN_SECONDS, pointer
+from scripts.vancouver_transit_commutes import BOARDING_MARGIN_SECONDS
 
 
 def release(root, family, key):
@@ -195,7 +193,6 @@ def publish(root, archive, transfers=False, versions=None, *, preserve_modes=Fal
 
         riders = package(root, "transit-riders", build_riders)
         publish_walks(root, riders)
-        publish_index(root, CITY_TRANSIT, riders)
         request = dict(radius=pedestrian_baseline["radius"], sites=pedestrian_baseline["sites"],
                        joint=dict(inputs, transit=transit, riders=riders, short=str(short_path)))
         spool = folder / "pedestrians.json"

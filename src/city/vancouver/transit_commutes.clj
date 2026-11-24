@@ -4,7 +4,7 @@
             [city.vancouver.departures :as dep]
             [city.vancouver.household-clock :as clock]
             [city.vancouver.outing-opportunities :as outings]
-            [city.vancouver.trip-demand :refer [visit-residents!]]
+            [city.vancouver.roster :as roster]
             [clojure.data.json :as json]
             [clojure.java.io :as io]))
 
@@ -46,7 +46,7 @@
   (let [candidates (mapv #(transit-legs %1 %2 flex? work?) (day "templates") (atlas "templates"))
         rows (volatile! (transient []))
         excluded (volatile! {"mixed" 0 "unlocated" 0 "samePlace" 0})]
-    (visit-residents!
+    (roster/visit-private!
      atlas-dir day-dir atlas (day "das")
      (fn [da person [age _ labour _ _ _ _ tpl] _ plan]
        (when (or (not work?) (and (= 1 labour) (<= 3 age 13)))

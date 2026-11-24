@@ -2,7 +2,7 @@
   "Count trips and assigned crossings for North Shore residents aged 15+."
   (:require [city.commute :as commute]
             [city.vancouver.departures :refer [read-json]]
-            [city.vancouver.trip-demand :refer [visit-residents!]]
+            [city.vancouver.roster :as roster]
             [clojure.data.json :as json]
             [clojure.java.io :as io])
   (:import [java.util HashMap]))
@@ -39,7 +39,7 @@
         home-groups (into {} (for [name municipalities da (get-in atlas ["areas" name "das"])] [da name]))
         counts (HashMap.)
         examples (HashMap.)]
-    (visit-residents!
+    (roster/visit-private!
      atlas-dir day-dir atlas (filter #(contains? home-groups %) (day "das"))
      (fn [da i [age _ labour _ _ _ _ template] home-place plan]
        (when (<= 3 age 13)
