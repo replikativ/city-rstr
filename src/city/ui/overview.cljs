@@ -4,6 +4,7 @@
             ["@deck.gl/layers" :refer [ScatterplotLayer]]
             ["./agent_positions.js" :refer [loadPositions]]
             [city.replay :as replay]
+            [city.resident :as resident]
             [city.ui.catalog :as catalog]
             [city.ui.map-view :as view]))
 
@@ -25,6 +26,22 @@
     (if (= 1 (- hi lo)) lo
       (let [mid (quot (+ lo hi) 2)]
         (if (<= (aget times mid) t) (recur mid hi) (recur lo mid))))))
+
+(defn- resolve-access-seconds! [legs]
+  ;; Legacy Stuttgart access walks were rounded to minutes during export.
+  ;; Only move an isolated walk, strictly inside its own hourly file.
+  (let [counts (frequencies (map #(.-id %) (array-seq legs)))]
+    (doseq [^js leg (array-seq legs)
+            :when (and (= "access" (.-purpose leg)) (= 1 (counts (.-id leg))))
+            :let [times (.-times leg)
+                  start (aget times 0)
+                  end (aget times (dec (alength times)))]
+            :when (and (js/Number.isInteger start) (js/Number.isInteger end)
+                       (= (quot start 60) (quot end 60))
+                       (pos? (mod start 60)) (pos? (mod end 60)))]
+      (let [offset (resident/within-bin-offset (.-agent leg) 1.0)]
+        (dotimes [i (alength times)]
+          (aset times i (+ (aget times i) offset)))))))
 
 (defn- position [^js leg t]
   (let [ts (.-times leg) path (.-path leg) end (dec (alength ts))]
@@ -340,10 +357,13 @@
             (trace-file [key]
               (or (get-in @state [:chunks key :promise])
                   (let [controller (js/AbortController.)
+                        stuttgart? (= "stuttgart" (some-> (:run @state) .-city))
                         current? #(identical? controller (get-in @state [:chunks key :controller]))
                         promise (-> (json (str "data/overview/" key ".json") #js {:signal (.-signal controller)})
                                     (.then (fn [legs]
-                                             (when (current?) (swap! state assoc-in [:chunks key :legs] legs))
+                                             (when (current?)
+                                               (when stuttgart? (resolve-access-seconds! legs))
+                                               (swap! state assoc-in [:chunks key :legs] legs))
                                              legs))
                                     (.catch (fn [error]
                                               (when (current?) (swap! state update :chunks dissoc key))

@@ -1,6 +1,14 @@
 (ns city.resident
   "Replay a scheduled visit with versioned place IDs supplied by the city.")
 
+(def phase-period 10007)
+
+(defn within-bin-offset
+  "Stable per-person offset in minutes, centred on the recorded bin."
+  [agent width]
+  (- (/ (* width (+ 0.5 (mod (* (inc agent) 7919) phase-period))) phase-period)
+     (/ width 2.0)))
+
 (defn- leg-at [phase from to start end minute]
   {:phase phase :from from :to to :start start :end end
    :fraction (/ (double (- minute start)) (- end start))})

@@ -1,13 +1,14 @@
 (ns city.vancouver.diary-clock
   "One reproducible phase per roster member within a five-minute reporting bin.
    The discrete engine observes the continuous clock at whole minutes."
-  #?(:clj (:require [clojure.data.json :as json])))
+  (:require [city.resident :as resident]
+            #?(:clj [clojure.data.json :as json])))
 
-(def period 10007)
+(def period resident/phase-period)
 
 (defn phase [agent]
   ;; Multiplication precedes division to preserve the published sub-minute clock.
-  (- (/ (* 5.0 (+ 0.5 (mod (* (inc agent) 7919) period))) period) 2.5))
+  (resident/within-bin-offset agent 5.0))
 
 (defn minute-offset [agent] (long (Math/ceil (phase agent))))
 
