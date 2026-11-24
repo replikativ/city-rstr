@@ -1,18 +1,40 @@
-# Deploying the explorer
+# Publish the city explorer
 
-The explorer is published as static files under `https://simm.is/city/`,
-released separately from the website.
+Nginx serves the static bundle through `/var/www/city-releases/current/` at
+`https://simm.is/city/`. The main website has its own release directory.
 
-1. Export: `(city.demo.stuttgart/export-static! :dir "dist/lab")` in a process
-   that has run the pipeline (`clojure -M:demo export` does both).
-2. Check locally: `deploy/deploy.sh --dry-run`, then serve the staged folder.
-3. Deploy: `deploy/deploy.sh`. It uploads a new release, verifies every file
-   by SHA-256 on the host and only then switches `current`.
-4. Roll back: `deploy/deploy.sh --rollback`.
+1. From the reviewed checkout run `npm ci` and `npm run release`. Obtain the
+   pinned data directory from the release artifact or the publishing workspace.
+   `python3 -m scripts.preview_bundle --pinned-data --data /path/to/bundle/data` assembles the
+   browser and city data and checks each data file against the reviewed inventory in
+   `deploy/weekday-data.sha256.gz`. A mirror containing additional runs also works. The release identifier
+   is the SHA-256 of the resulting inventory, `SHA256SUMS`.
+2. Serve `dist/city-previews/current` with `npm run preview -- --directory dist/city-previews/current`.
+   Check both city selectors, clock playback, the Milaneo and East Hastings
+   scenarios, source pages and an older bookmarked URL.
+3. `deploy/deploy.sh --dry-run` checks the bundle inventory, stages gzip twins and
+   prints the staging size. Check available space on the host against this size.
+4. `deploy/deploy.sh` uploads the bundle to a new directory on `simmis@simm.is`.
+   Pass the reviewed immutable bundle path as the positional argument when
+   deploying after review. The host verifies checksums before switching the current symlink.
+   `deploy/deploy.sh --rollback` restores the release active immediately before
+   the switch. Activation and rollback share a lock.
 
-One-time server setup: create `/var/www/city-releases` owned by the deploy
-user, add `nginx-city.conf` to the HTTPS `simm.is` server block, keep the
-previous configuration, run `sudo nginx -t` and reload.
+The host needs Bash, rsync, GNU coreutils, flock and a deploy-user-owned
+`/var/www/city-releases`. For initial setup include `nginx-city.conf` in the
+HTTPS server block, validate the configuration and reload Nginx. The location
+sends `X-Robots-Tag: noindex`.
 
-The page and the `X-Robots-Tag` header say `noindex` until the project is
-announced; remove both then.
+To restore data on a second machine, copy the `data/` directory from the
+publishing workspace's immutable `dist/city-previews/<bundle-id>/` directory
+or a retained server release. Pass the copied directory to `--pinned-data`.
+The PR carries the SHA-256 inventory. Access to a release mirror is required
+to reproduce the explorer before its first public deployment.
+
+To update the inventory after an intentional data change, build with
+`npm run preview:bundle`, review the changes, then run:
+
+```sh
+awk 'substr($0, 67, 5) == "data/"' dist/city-previews/current/SHA256SUMS |
+  gzip -n > deploy/weekday-data.sha256.gz
+```

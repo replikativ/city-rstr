@@ -15,36 +15,32 @@ set -euo pipefail
 
 HOST="${CITY_DEPLOY_HOST:-simmis@simm.is}"
 RELEASES="${CITY_RELEASES:-/var/www/city-releases}"
-KEEP=3
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 
 if [[ "${1:-}" == "--rollback" ]]; then
-  ssh "$HOST" "set -e; cd '$RELEASES'
-    cur=\$(readlink current); prev=\$(ls -1dt */ | sed 's|/\$||' | grep -vx \"\$(basename \$cur)\" | head -1)
-    [ -n \"\$prev\" ] || { echo 'no previous release' >&2; exit 1; }
-    ln -sfn \"$RELEASES/\$prev\" current.new && mv -T current.new current && echo \"current -> \$prev\""
+  ssh "$HOST" bash -s -- "$RELEASES" --rollback < "$SCRIPT_DIR/activate.sh"
   exit 0
 fi
 
 DRY=0
 if [[ "${1:-}" == "--dry-run" ]]; then DRY=1; shift; fi
-SRC="${1:-dist/lab}"
-[[ -f "$SRC/index.html" && -d "$SRC/data" ]] || { echo "no export at $SRC (run city.demo.stuttgart/export-static!)" >&2; exit 1; }
+SRC="${1:-dist/city-previews/current}"
+[[ -f "$SRC/index.html" && -f "$SRC/SHA256SUMS" && -d "$SRC/data" ]] || { echo "no export at $SRC (run npm run preview:bundle)" >&2; exit 1; }
 
 REL="$(git rev-parse --short HEAD)-$(date -u +%Y%m%dT%H%M%SZ)"
 SCRATCH="${XDG_CACHE_HOME:-$HOME/.cache}/city-deploy"
 STAGE="$SCRATCH/$REL"
-mkdir -p "$STAGE"
+mkdir -p "$SCRATCH"
+mkdir "$STAGE"
 cp -r "$SRC"/. "$STAGE"/
+(cd "$STAGE" && sha256sum --quiet -c SHA256SUMS)
 find "$STAGE" -type f \( -name '*.json' -o -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' -o -name '*.txt' \) \
-     -size +1k -exec gzip -k -9 -n {} \;
+     -size +1k -exec gzip -k -9 -n {} +
 (cd "$STAGE" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 echo "staged $REL: $(find "$STAGE" -type f | wc -l) files, $(du -sh --apparent-size "$STAGE" | cut -f1)"
 if [[ $DRY -eq 1 ]]; then echo "dry run: $STAGE"; exit 0; fi
 
-ssh "$HOST" "mkdir -p '$RELEASES/$REL'"
+ssh "$HOST" "mkdir '$RELEASES/$REL'"
 rsync -a --chmod=D755,F644 "$STAGE"/ "$HOST:$RELEASES/$REL/"
-ssh "$HOST" "set -e; cd '$RELEASES/$REL' && sha256sum --quiet -c SHA256SUMS
-  cd '$RELEASES' && ln -sfn '$RELEASES/$REL' current.new && mv -T current.new current
-  ls -1dt */ | sed 's|/\$||' | tail -n +$((KEEP + 1)) | xargs -r rm -rf
-  echo \"current -> $REL\""
+ssh "$HOST" bash -s -- "$RELEASES" "$REL" < "$SCRIPT_DIR/activate.sh"
 rm -rf "$STAGE"

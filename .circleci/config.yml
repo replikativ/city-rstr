@@ -84,6 +84,9 @@ jobs:
             - ~/.npm
           key: v1-npm-{{ checksum "package-lock.json" }}
       - run:
+          name: Explorer and deployment checks
+          command: node --test test/*.test.mjs && bash test/deploy_rotation.sh
+      - run:
           name: Release build of the explorer
           command: npm run release
       - run:
