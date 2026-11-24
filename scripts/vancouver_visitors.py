@@ -10,8 +10,8 @@ import duckdb
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import write_json
-from scripts.vancouver_campus import CAMPUS, campus_mask, read
+from scripts.artifacts import read, write_json
+from scripts.vancouver_campus import CAMPUS, campus_mask
 from scripts.vancouver_cityday import xy
 from scripts.vancouver_streets import walk_graph
 

@@ -11,14 +11,14 @@ import tempfile
 import duckdb
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_bridge_traffic import IRONWORKERS, REGIONAL_BRIDGES, road_profile, score
 from scripts.vancouver_cityday import ORIGIN, SCALE, SPEED, xy
 from scripts.vancouver_commuter_presence import publish_presence
 from scripts.vancouver_inbound import (
     MODES, NAMES, WEEKDAY_ATTENDANCE, commute_donors, home_anchors, shifts, simulate, workplaces,
 )
-from scripts.vancouver_region import package, read, rows
+from scripts.vancouver_region import rows
 from scripts.vancouver_regional_workplaces import CENSUS, SOURCE
 from scripts.vancouver_workplace_tracts import census_counts
 

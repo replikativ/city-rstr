@@ -1,11 +1,12 @@
 import unittest
 
+from scripts.artifacts import write_json
+
 
 class CycleCountsTest(unittest.TestCase):
     def test_junction_bound_respects_direction_access_and_survey_hours(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        from scripts.vancouver_atlas import write_json
         from scripts.vancouver_cycle_counts import add_junction_bounds
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

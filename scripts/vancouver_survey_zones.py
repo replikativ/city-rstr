@@ -11,11 +11,9 @@ import numpy as np
 from matplotlib.path import Path as Polygon
 from scipy.spatial import cKDTree
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_cityday import ORIGIN, SCALE
-from scripts.vancouver_inbound import read
 from scripts.vancouver_mobility import SOURCE
-from scripts.vancouver_region import package
 
 TAZ_ITEM = "31b1106ca5fb4c91b303e26f446eb173"
 SHA256 = "3b8f6ba3c0daea9637807c8eb4c6b4cba72755682c655023be09800d2647538f"

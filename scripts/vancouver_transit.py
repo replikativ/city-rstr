@@ -13,7 +13,7 @@ from pathlib import Path
 import duckdb
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, write_json
 from scripts.vancouver_cityday import xy
 
 
@@ -146,7 +146,6 @@ def build(feed,areas,day,output,*,passenger_rules=False,transfer_rules=False):
 
 
 if __name__=="__main__":
-    from scripts.vancouver_region import package
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("archive",type=Path)
     parser.add_argument("--inputs",type=Path,default=Path("data/region"));parser.add_argument("--date",type=date.fromisoformat,default=date(2026,9,15))
     parser.add_argument("--region",type=Path,default=Path("public/data/vancouver/region"));args=parser.parse_args()

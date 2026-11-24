@@ -5,10 +5,11 @@ import unittest
 
 import numpy as np
 
+from scripts.artifacts import read
 from scripts.vancouver_cityday import compile_day
 from scripts.vancouver_streets import access_graph
 from scripts.vancouver_household_market import household_band
-from scripts.vancouver_market import publish_market, read, feasible, grocery_draw, locate, score, walk_graph, windows
+from scripts.vancouver_market import publish_market, feasible, grocery_draw, locate, score, walk_graph, windows
 
 
 class MarketTest(unittest.TestCase):

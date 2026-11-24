@@ -10,10 +10,8 @@ import subprocess
 from statistics import median
 import tempfile
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, pointer, read, write_json
 from scripts.vancouver_inbound import profile_das
-from scripts.vancouver_region import package, read
-from scripts.vancouver_transit_commutes import pointer
 
 
 SOURCE = "https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E"

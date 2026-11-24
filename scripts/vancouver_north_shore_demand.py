@@ -6,9 +6,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_north_shore_zones import ZONE_NAMES, crosswalk, reference, workplace_groups
-from scripts.vancouver_region import package, read
 from scripts.vancouver_short_walks import gaps as stop_boundaries
 from scripts.vancouver_trip_demand import destination, linked_trips
 

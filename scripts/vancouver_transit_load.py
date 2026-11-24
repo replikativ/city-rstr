@@ -6,8 +6,7 @@ import math
 from itertools import chain
 from statistics import median
 
-from scripts.vancouver_region import read
-
+from scripts.artifacts import read
 
 TABLE = "transit_translink_tspr2025_bus_peakload_yearlinedaytypeseasontimerangedirection.csv"
 ANNUAL_TABLE = "transit_translink_tspr2025_bus_yearline.csv"

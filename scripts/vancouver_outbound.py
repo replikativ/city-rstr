@@ -12,13 +12,13 @@ from pathlib import Path
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import donor_person, write_json
+from scripts.artifacts import package, read, write_json
+from scripts.vancouver_atlas import donor_person
 from scripts.vancouver_cityday import SPEED
 from scripts.vancouver_downtown import MODE_INDEX, MODES
-from scripts.vancouver_inbound import CITY, MODE, WORK, read
+from scripts.vancouver_inbound import CITY, MODE, WORK
 from scripts.vancouver_census_geography import DA, profile_cells
 from scripts.vancouver_population_check import BANDS, LABELS
-from scripts.vancouver_region import package
 from scripts.vancouver_streets import access_graph
 from scripts.vancouver_cycling import FORWARD, REVERSE, publish as publish_cycling
 

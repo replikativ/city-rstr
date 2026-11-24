@@ -9,13 +9,13 @@ import tempfile
 
 import numpy as np
 
-from scripts.vancouver_atlas import largest_remainder, write_json
+from scripts.artifacts import package, pointer, read, write_json
+from scripts.vancouver_atlas import largest_remainder
 from scripts.vancouver_campus import access_routes
 from scripts.vancouver_city_transit import DirectService
 from scripts.vancouver_commuter_coverage import carry_bookings, passenger_walks
 from scripts.vancouver_outbound_road_jobs import inventory
-from scripts.vancouver_region import package, read
-from scripts.vancouver_transit_commutes import BOARDING_MARGIN_SECONDS, pointer
+from scripts.vancouver_transit_commutes import BOARDING_MARGIN_SECONDS
 from scripts.vancouver_transit_load import ANNUAL_TABLE, TABLE, BusSpaces, bus_capacity_profile, bus_load_evidence, ride_legs
 from scripts.vancouver_transit_reach import INF, Reach
 from scripts.vancouver_transit_transfers import OneTransfer, TwoTransfers, walk_transfers

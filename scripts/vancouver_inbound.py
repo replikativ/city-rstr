@@ -11,10 +11,9 @@ from pathlib import Path
 import duckdb
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_cityday import licensed_jobs, xy
 from scripts.vancouver_downtown import MODES
-from scripts.vancouver_region import package
 from scripts.vancouver_visitors import donor_pool, intervals
 from scripts.vancouver_walks import MOBILE
 
@@ -28,10 +27,6 @@ WEEKDAY_ATTENDANCE = .64
 MODE = {1: 4, 2: 0, 3: 7, 4: 7, 5: 1, 6: 5, 7: 6}
 NAMES = {"5915046": "District of North Vancouver", "5915051": "City of North Vancouver",
          "5915001": "Township of Langley", "5915002": "City of Langley"}
-
-
-def read(path):
-    return json.loads(path.read_bytes())
 
 
 def origins(path):

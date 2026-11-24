@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import write_json
 
 
 def daily_segments(start, length):

@@ -1,13 +1,13 @@
 """Test held-out household income and usual commute distributions against the 2021 Census Profile."""
 import argparse
 from bisect import bisect_right
-import json
 from pathlib import Path
 import tempfile
 
 import numpy as np
 
-from scripts.vancouver_atlas import donors, write_json
+from scripts.artifacts import read, write_json
+from scripts.vancouver_atlas import donors
 from scripts.vancouver_census_geography import CITY, DA, profile_cells
 from scripts.vancouver_household_market import household_income
 from scripts.vancouver_region import NAMES
@@ -21,10 +21,6 @@ DENOMINATORS = {"income": 260, "commute": 2603}
 LABELS = {"income": ["Below $50,000", "$50,000–99,999", "$100,000–149,999", "$150,000 or more"],
           "commute": ["Car driver", "Car passenger", "Public transit", "Walking", "Bicycle", "Other method"]}
 MODE = {2: 0, 5: 1, 6: 2, 7: 3, 1: 4, 3: 5, 4: 5}
-
-
-def read(path):
-    return json.loads(path.read_bytes())
 
 
 # Each mean or proportion uses its own published universe when aggregating DAs.

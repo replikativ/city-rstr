@@ -5,8 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
+from scripts.artifacts import pointer, read
 from scripts.vancouver_trip_demand import MODES
 
 SOURCE = "https://vancouver.ca/files/cov/2025-transportation-survey-report.pdf"

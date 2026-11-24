@@ -18,14 +18,12 @@ from scipy.sparse.csgraph import dijkstra
 from scipy.spatial.distance import cdist
 from scipy.spatial import cKDTree
 
-from scripts.vancouver_atlas import largest_remainder, write_json
+from scripts.artifacts import package, pointer as publish_pointer, read, write_json
+from scripts.vancouver_atlas import largest_remainder
 from scripts.vancouver_cityday import SPEED, licensed_jobs, xy
 from scripts.vancouver_cycling import FORWARD, REVERSE
-from scripts.vancouver_inbound import read
-from scripts.vancouver_region import package
 from scripts.vancouver_streets import access_graph
 from scripts.vancouver_survey_zones import geography
-from scripts.vancouver_transit_commutes import pointer as publish_pointer
 from scripts.vancouver_workplace_tracts import census_counts
 
 SEED = 98100498

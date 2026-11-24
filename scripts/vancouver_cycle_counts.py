@@ -10,9 +10,8 @@ import subprocess
 import tempfile
 
 from openpyxl import load_workbook
+from scripts.artifacts import package, read, write_json
 
-from scripts.vancouver_atlas import write_json
-from scripts.vancouver_region import package, read
 
 SOURCE = "https://vancouver.ca/streets-transportation/traffic-count-data.aspx"
 COUNTER_LOCATIONS = "https://vancouver.ca/files/cov/2025-873-release.pdf"

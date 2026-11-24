@@ -12,7 +12,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.spatial import cKDTree
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import write_json
 from scripts.vancouver_cityday import xy
 from scripts.vancouver_walks import WALKABLE
 

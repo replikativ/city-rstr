@@ -7,24 +7,16 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, pointer, read, write_json
 from scripts.vancouver_campus import access_routes
 from scripts.vancouver_city_transit import DirectService
-from scripts.vancouver_region import NAMES, package, read
+from scripts.vancouver_region import NAMES
 from scripts.vancouver_transit import build as timetable
 from scripts.vancouver_transit_load import ANNUAL_TABLE, TABLE as BUS_LOAD_TABLE
 from scripts.vancouver_transit_load import BusSpaces, bus_capacity_profile, bus_load_evidence, rider_order
 from scripts.vancouver_transit_transfers import MAX_TRANSFER_METRES, OneTransfer, walk_transfers
 
 BOARDING_MARGIN_SECONDS = 180
-
-
-def pointer(path, info):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=path.parent) as tmp:
-        pending = Path(tmp) / "pointer"
-        write_json(pending, info)
-        pending.replace(path)
 
 
 def capacity_order(item):

@@ -3,8 +3,7 @@ import argparse
 from functools import lru_cache
 from pathlib import Path
 
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
+from scripts.artifacts import pointer, read
 from scripts.vancouver_walks import RADIUS, passing_minute
 
 

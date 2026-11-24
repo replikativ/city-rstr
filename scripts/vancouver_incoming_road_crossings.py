@@ -7,11 +7,10 @@ from pathlib import Path
 from matplotlib.path import Path as Polygon
 import numpy as np
 
+from scripts.artifacts import pointer, read
 from scripts.vancouver_bridge_traffic import ARCHIVE, BRIDGES as CITY_BRIDGES, IRONWORKERS, IRONWORKERS_FILE, SOURCE, ironworkers_observations, observations, screen_arcs
 from scripts.vancouver_cityday import ORIGIN, SCALE
 from scripts.vancouver_incoming_drives import driving_legs
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
 from scripts.vancouver_workplace_drives import score
 
 

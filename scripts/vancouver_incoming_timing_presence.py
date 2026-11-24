@@ -5,9 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
+from scripts.artifacts import pointer, read
 from scripts.vancouver_commuter_presence import daily_segments, raster_presence
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
 
 
 def extension(row, worker, home, maximum):

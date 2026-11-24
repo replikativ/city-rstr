@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 
+from scripts.artifacts import write_json
 from scripts.vancouver_basemap import basemap
 
 SEED = 2021
@@ -222,10 +223,6 @@ class Weekday:
         role = "worker" if labour==1 else "student" if school==1 else "nonworker" if labour in (2,3) else "any"
         key = ("masked" if age==88 else DAY_AGE[age-1],role)
         return key if key in self.cdfs else (key[0], "any")
-
-
-def write_json(file, obj):
-    file.write_text(json.dumps(obj,separators=(",",":"),ensure_ascii=False,allow_nan=False))
 
 
 def sums(rows):

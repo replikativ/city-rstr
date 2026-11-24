@@ -3,7 +3,8 @@ from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from scripts.vancouver_region import place_kinds, publish_versions, read
+from scripts.artifacts import read
+from scripts.vancouver_region import place_kinds, publish_versions
 from scripts.vancouver_short_walks import gaps, interval
 from scripts.vancouver_transit import active_services, seconds, stop_distances
 

@@ -1,6 +1,5 @@
 """Resolve adjacent diary stops where a short network walk fits between assigned places."""
 import argparse
-import json
 import math
 import tempfile
 from collections import Counter, defaultdict
@@ -9,16 +8,12 @@ from pathlib import Path
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import read, write_json
 from scripts.vancouver_streets import walk_graph
 
 SPEED = 80  # walking metres per minute, also used by the grocery experiment
 MAX_MINUTES = 10
 SAME_PLACE_METRES = 25
-
-
-def read(path):
-    return json.loads(path.read_text())
 
 
 def gaps(template, diary):

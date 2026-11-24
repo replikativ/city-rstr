@@ -5,11 +5,10 @@ from collections import Counter
 from math import dist
 from pathlib import Path
 
+from scripts.artifacts import pointer, read
 from scripts.vancouver_incoming_duration_check import DISTANCE, DURATION, SOURCE, duration_margins, summarize
 from scripts.vancouver_outbound_road_counts import verify_work_clock
 from scripts.vancouver_outbound_road_jobs import digest
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
 from scripts.vancouver_transit_load import ride_legs
 
 

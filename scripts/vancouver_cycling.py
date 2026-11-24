@@ -5,8 +5,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from scripts.vancouver_atlas import write_json
-from scripts.vancouver_region import package, rows
+from scripts.artifacts import package, write_json
+from scripts.vancouver_region import rows
 from scripts.vancouver_streets import DRIVE, encode_way
 
 FORWARD, REVERSE = 8, 16

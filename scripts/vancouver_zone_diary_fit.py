@@ -7,12 +7,11 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import logsumexp
 
+from scripts.artifacts import pointer, read
 from scripts.vancouver_atlas import Weekday
 from scripts.vancouver_diary_fit import coupling, donor_probabilities, draw, features, locate, publish_atlas
 from scripts.vancouver_income_travel import BANDS, OBSERVED_2023, SOURCE_2023, roster_bands
-from scripts.vancouver_region import read
 from scripts.vancouver_survey_zones import geography
-from scripts.vancouver_transit_commutes import pointer
 from scripts.vancouver_trip_demand import MODES, SHARES, publish as trip_demand
 from scripts.vancouver_zone_check import publish as check_zones
 

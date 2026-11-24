@@ -3,7 +3,6 @@ import argparse
 import csv
 import hashlib
 import io
-import json
 import subprocess
 import tempfile
 import zipfile
@@ -13,7 +12,7 @@ from urllib.request import urlopen
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import read, write_json
 from scripts.vancouver_streets import walk_graph
 
 DOWNLOAD = "https://www150.statcan.gc.ca/n1/tbl/csv/11100223-eng.zip"
@@ -24,10 +23,6 @@ QUINTILES = ["Lowest quintile", "Second quintile", "Third quintile", "Fourth qui
 LIMITS = [400, 800, 1200]
 GROUPS = len(QUINTILES) + 1
 BATCH = 64
-
-
-def read(path):
-    return json.loads(path.read_bytes())
 
 
 def spending(source):

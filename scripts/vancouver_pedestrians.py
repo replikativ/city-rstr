@@ -11,10 +11,9 @@ import subprocess
 import sys
 import tempfile
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, write_json
 from scripts.vancouver_cityday import xy
 from scripts.vancouver_grocery import HOLDOUT, reserved_studies
-from scripts.vancouver_region import package
 from scripts.vancouver_walks import RADIUS, SURVEYS, can_reach_site, passing_minute, verified_study
 from scripts.vancouver_streets import walk_graph
 

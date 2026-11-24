@@ -4,8 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from scripts.vancouver_atlas import write_json
-from scripts.vancouver_region import package, read
+from scripts.artifacts import package, read, write_json
 
 
 def publish(root, versions, clock=None, census=False, *, atlas_root=None, day_root=None, clock_family="household-clock"):

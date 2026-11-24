@@ -1,18 +1,13 @@
 """Run paired weekday policies through city-rstr's Raster engine at resident and area-itinerary fidelity."""
 import argparse
 import collections
-import json
 import subprocess
 import tempfile
 from pathlib import Path
 
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
-
-
-def read(path):
-    return json.loads(path.read_bytes())
+from scripts.artifacts import read, write_json
 
 
 def work_tours(tpl, diary):

@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import write_json
 from scripts.vancouver_mobility import MobilityAudit
 from scripts.vancouver_walks import MOBILE
 

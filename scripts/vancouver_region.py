@@ -1,6 +1,5 @@
 """Build the connected Vancouver, UBC and North Shore study extent from census and GIS releases."""
 import argparse
-import hashlib
 import json
 import os
 import subprocess
@@ -13,6 +12,7 @@ from pathlib import Path
 
 import duckdb
 
+from scripts.artifacts import package, read, write_json
 from scripts import vancouver_atlas as atlas
 from scripts import vancouver_cityday as cityday
 from scripts import vancouver_streets as streets
@@ -40,10 +40,6 @@ def acquire(inputs):
                 shutil.copyfileobj(response,output)
             file.replace(inputs/name)
 
-
-
-def read(path):
-    return json.loads(path.read_text())
 
 
 def emit(stream,obj):
@@ -94,8 +90,8 @@ def prepare_census(raw,inputs,work):
         if (sums[name,"people"],sums[name,"homes"])!=(n,h):raise ValueError("Census subdivision mismatch "+name)
     with (work/"vancouver_da_boundaries.jsonl").open("w") as stream:
         for da,g in geos.items():emit(stream,dict(dauid=da,geometry=g))
-    atlas.write_json(work/"areas.json",shapes)
-    atlas.write_json(work/"coverage.json",dict(controls=controls,campusDAs={k:round(ratios[k],4) for k in sorted(selected)},
+    write_json(work/"areas.json",shapes)
+    write_json(work/"coverage.json",dict(controls=controls,campusDAs={k:round(ratios[k],4) for k in sorted(selected)},
         campusResidents=sums[CAMPUS,"people"],campusHomes=sums[CAMPUS,"homes"],limited=quality))
     print("Regional sources:",len(geos),"census areas;",controls,"campus",sums[CAMPUS,"people"],"limited",quality,flush=True)
 
@@ -182,18 +178,6 @@ def rows(file):
     with file.open() as stream:yield from map(json.loads,stream)
 
 
-def package(root,name,fn,seed=""):
-    folder=root/name;folder.mkdir(parents=True,exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=folder) as tmp:
-        payload=Path(tmp)/"payload";payload.mkdir();fn(payload)
-        h=hashlib.sha256(seed.encode())
-        for file in sorted(payload.iterdir()):
-            h.update(file.name.encode());h.update(file.read_bytes())
-        version=h.hexdigest()[:20]
-        if not (folder/version).exists():payload.rename(folder/version)
-        return version
-
-
 def publish_versions(output, versions):
     history = output / "releases"
     history.mkdir(exist_ok=True)
@@ -204,10 +188,10 @@ def publish_versions(output, versions):
             key = release["atlas"] + "_" + release["day"] + ".json"
             if not (history / key).exists():
                 file = Path(tmp) / key
-                atlas.write_json(file, release)
+                write_json(file, release)
                 file.replace(history / key)
         pointer = Path(tmp) / "pointer"
-        atlas.write_json(pointer, versions)
+        write_json(pointer, versions)
         pointer.replace(current)
 
 
@@ -230,7 +214,7 @@ def merge_municipality(regional, core, folder, coverage):
     regional["das"].update(city["das"])
     regional["city"] = atlas.sums(list(regional["das"].values()))
     regional["coverage"] = dict(coverage, municipalAtlas=core.name)
-    atlas.write_json(folder / "atlas.json", regional)
+    write_json(folder / "atlas.json", regional)
 
 
 def rebase_atlas(output, regional_id, municipal_id):

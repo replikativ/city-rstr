@@ -8,11 +8,9 @@ import tempfile
 
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, pointer, read, write_json
 from scripts.vancouver_household_market import household_income
 from scripts.vancouver_mobility import PRIORITY, REPORT, mode_counts
-from scripts.vancouver_region import package, read
-from scripts.vancouver_transit_commutes import pointer
 
 SOURCE = "https://vancouver.ca/files/cov/2022-transportation-panel-survey.pdf"
 SOURCE_2023 = "https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF"

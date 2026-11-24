@@ -7,11 +7,10 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, pointer, read, write_json
 from scripts.vancouver_campus import access_routes
 from scripts.vancouver_city_transit import DirectService
-from scripts.vancouver_region import package, read
-from scripts.vancouver_transit_commutes import BOARDING_MARGIN_SECONDS, pointer
+from scripts.vancouver_transit_commutes import BOARDING_MARGIN_SECONDS
 from scripts.vancouver_transit_load import ANNUAL_TABLE, TABLE, BusSpaces, bus_capacity_profile, bus_load_evidence
 from scripts.vancouver_transit_transfers import MAX_TRANSFER_METRES, OneTransfer, walk_transfers
 

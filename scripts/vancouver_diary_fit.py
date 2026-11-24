@@ -8,14 +8,13 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import logsumexp, softmax
 
-from scripts.vancouver_atlas import Weekday, sums, write_json
+from scripts.artifacts import package, pointer, read, write_json
+from scripts.vancouver_atlas import Weekday, sums
 from scripts.vancouver_cityday import build as locate_weekday
 from scripts.vancouver_city_transit import publish_riders
 from scripts.vancouver_income_travel import BANDS, MODES, OBSERVED_2023, SOURCE_2023, roster_bands
 from scripts.vancouver_mobility import mode_counts
-from scripts.vancouver_region import package, read
 from scripts.vancouver_street_walks import publish as index_streets
-from scripts.vancouver_transit_commutes import pointer
 
 SEED = 20261122
 PENALTY = 0.015

@@ -3,7 +3,7 @@ import math
 import tempfile
 import unittest
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import write_json
 from scripts.vancouver_campus import access_routes, WALK_METRES_PER_SECOND
 from scripts.vancouver_city_transit import DirectService, transit_parts
 from scripts.vancouver_commuter_coverage import carry_bookings, passenger_walks

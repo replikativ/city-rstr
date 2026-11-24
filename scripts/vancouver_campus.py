@@ -1,6 +1,5 @@
 """Audit regional resident presence at UBC and match campus transit bouts to the timetable."""
 import argparse
-import json
 import math
 import tempfile
 from collections import Counter, defaultdict
@@ -10,7 +9,7 @@ import numpy as np
 from scipy.sparse.csgraph import dijkstra
 from scipy.spatial import cKDTree
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import read, write_json
 from scripts.vancouver_cityday import ORIGIN, SCALE
 from scripts.vancouver_streets import walk_graph
 
@@ -25,10 +24,6 @@ OBSERVED = dict(daily=[65400, 81400, 2500, 1200, 1400, 0],
 TOTALS = dict(daily=151900, amIn=8283, amOut=3217, pmIn=4971, pmOut=9175)
 ACCESS_METRES = 800
 WALK_METRES_PER_SECOND = 80 / 60
-
-
-def read(path):
-    return json.loads(path.read_bytes())
 
 
 def campus_mask(places, geometry):

@@ -7,10 +7,9 @@ import tempfile
 
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_census_geography import CITY, DA, profile_cells
-from scripts.vancouver_population_check import read
-from scripts.vancouver_region import NAMES, package
+from scripts.vancouver_region import NAMES
 
 
 def household_times(index, atlas, das):

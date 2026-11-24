@@ -13,10 +13,10 @@ import numpy as np
 from scipy.sparse.csgraph import dijkstra
 from scipy.spatial import cKDTree
 
-from scripts.vancouver_atlas import largest_remainder, write_json
+from scripts.artifacts import package, read, write_json
+from scripts.vancouver_atlas import largest_remainder
 from scripts.vancouver_bridge_traffic import IRONWORKERS, IRONWORKERS_FILE, REGIONAL_BRIDGES, MAX_CONNECTOR, screen_arcs
 from scripts.vancouver_cityday import SPEED
-from scripts.vancouver_region import package, read
 from scripts.vancouver_streets import access_graph
 
 CENSUS = (

@@ -10,9 +10,7 @@ from scipy.optimize import linear_sum_assignment
 from scipy.sparse import bmat, csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import write_json
-from scripts.vancouver_inbound import read
-from scripts.vancouver_region import package
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_streets import walk_graph
 
 

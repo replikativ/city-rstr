@@ -10,11 +10,9 @@ import tempfile
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, pointer, read, write_json
 from scripts.vancouver_mobility import PRIORITY, REPORT
-from scripts.vancouver_region import package, read
 from scripts.vancouver_streets import access_graph
-from scripts.vancouver_transit_commutes import pointer
 
 
 def arc_weights(hourly):

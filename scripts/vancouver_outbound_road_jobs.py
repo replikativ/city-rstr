@@ -11,12 +11,12 @@ import duckdb
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import largest_remainder, write_json
+from scripts.artifacts import package, pointer, read, write_json
+from scripts.vancouver_atlas import largest_remainder
 from scripts.vancouver_census_geography import area_membership
 from scripts.vancouver_cityday import xy
-from scripts.vancouver_region import package, place_kinds, read
+from scripts.vancouver_region import place_kinds
 from scripts.vancouver_streets import access_graph
-from scripts.vancouver_transit_commutes import pointer
 from scripts.vancouver_workplace_tracts import census_counts
 
 

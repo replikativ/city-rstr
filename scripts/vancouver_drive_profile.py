@@ -6,8 +6,8 @@ from pathlib import Path
 import re
 import tempfile
 
-from scripts.vancouver_atlas import write_json
-from scripts.vancouver_region import read, rows
+from scripts.artifacts import read, write_json
+from scripts.vancouver_region import rows
 from scripts.vancouver_streets import encode_way, permissions
 
 DEFAULTS = {

@@ -14,13 +14,13 @@ from pathlib import Path
 
 import numpy as np
 
+from scripts.artifacts import read
 from scripts import vancouver_bridge_traffic as road
 from scripts.vancouver_city_transit import DirectService, resident_trips
 from scripts.vancouver_campus import access_routes
 from scripts.vancouver_downtown import MODES, resident_flows, shared_minute_offset, station_counts
 from scripts.vancouver_regional_inbound import commute_legs
 from scripts.vancouver_regional_workplaces import TABLE, census_matrix
-from scripts.vancouver_region import read
 
 
 def digest(path):

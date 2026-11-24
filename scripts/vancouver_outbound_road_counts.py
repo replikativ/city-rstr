@@ -5,12 +5,11 @@ import tempfile
 
 import numpy as np
 
+from scripts.artifacts import pointer, read
 from scripts.vancouver_bridge_traffic import ARCHIVE, IRONWORKERS_FILE, score_window
 from scripts.vancouver_discretionary_outings import verify_intervals
 from scripts.vancouver_incoming_road_crossings import CITY_LIMIT_SOURCE, Cordon, PassageCounter, city_ring, road_screens
 from scripts.vancouver_outbound_road_jobs import digest
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
 from scripts.vancouver_workplace_drives import score
 
 

@@ -7,7 +7,8 @@ import math
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_campus import WALK_METRES_PER_SECOND, read
+from scripts.artifacts import read
+from scripts.vancouver_campus import WALK_METRES_PER_SECOND
 from scripts.vancouver_streets import walk_graph
 
 MAX_TRANSFER_METRES = 250

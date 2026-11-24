@@ -5,10 +5,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from scripts.vancouver_atlas import write_json
-from scripts.vancouver_inbound import read
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_mobility import REPORT, SOURCE, SURVEY, travel_bouts
-from scripts.vancouver_region import package
 from scripts.vancouver_survey_zones import geography
 
 # Table 16, in the published zone order. Rounding is retained.

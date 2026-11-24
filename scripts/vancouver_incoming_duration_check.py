@@ -8,9 +8,7 @@ from math import dist
 from pathlib import Path
 from zipfile import ZipFile
 
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
-
+from scripts.artifacts import pointer, read
 
 DISTANCE = (0, 1, 3, 5, 7, 10, 15, 20, 25, 30, 35)
 DURATION = (0, 15, 30, 45, 60)

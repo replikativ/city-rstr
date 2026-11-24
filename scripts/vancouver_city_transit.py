@@ -12,10 +12,9 @@ import tempfile
 
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_downtown import resident_flows, station_counts
-from scripts.vancouver_campus import ACCESS_METRES, WALK_METRES_PER_SECOND, access_routes, read
-from scripts.vancouver_region import package
+from scripts.vancouver_campus import ACCESS_METRES, WALK_METRES_PER_SECOND, access_routes
 from scripts.vancouver_transit import build as build_timetable
 from scripts.vancouver_transit_load import TABLE, BusSpaces, book_connections, book_direct, bus_capacity_profile, bus_load_evidence
 from scripts.vancouver_transit_transfers import MAX_TRANSFER_METRES, OneTransfer, walk_transfers

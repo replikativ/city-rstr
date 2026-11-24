@@ -6,12 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, pointer, read, write_json
 from scripts.vancouver_commuter_coverage import road_sections
 from scripts.vancouver_drive_profile import DEFAULTS, direction_speeds
-from scripts.vancouver_region import package, read
 from scripts.vancouver_streets import encode_way, permissions
-from scripts.vancouver_transit_commutes import pointer
 from scripts.vancouver_workplace_drives import score, summarize
 
 

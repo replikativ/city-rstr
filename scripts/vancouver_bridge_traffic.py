@@ -15,9 +15,8 @@ import duckdb
 import numpy as np
 from scipy.sparse.csgraph import connected_components, dijkstra
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_cityday import SPEED, xy
-from scripts.vancouver_region import package, read
 from scripts.vancouver_streets import access_graph
 
 SOURCE = "https://vancouver.ca/streets-transportation/traffic-count-data.aspx#permanent-count-stations"

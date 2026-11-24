@@ -2,11 +2,10 @@
 import argparse
 from pathlib import Path
 
+from scripts.artifacts import pointer, read
 from scripts.vancouver_basemap import basemap
 from scripts.vancouver_commuter_coverage import road_sections
 from scripts.vancouver_outbound_road_jobs import digest
-from scripts.vancouver_region import read
-from scripts.vancouver_transit_commutes import pointer
 
 
 def publish(root, archive, pbf, network):

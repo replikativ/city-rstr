@@ -11,11 +11,11 @@ import numpy as np
 from scipy.sparse.csgraph import dijkstra
 from scipy.spatial import cKDTree
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_bridge_traffic import road_profile
 from scripts.vancouver_cityday import xy
 from scripts.vancouver_north_shore_demand import NORTH_SHORE, SURVEY_MODES, SURVEY_ROWS, trip_inputs
-from scripts.vancouver_region import package, read, rows
+from scripts.vancouver_region import rows
 from scripts.vancouver_streets import access_graph, walk_graph
 
 SHOPPING = "Shopping and personal errands"

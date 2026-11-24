@@ -9,10 +9,9 @@ import duckdb
 import numpy as np
 from scipy.sparse.csgraph import dijkstra
 
-from scripts.vancouver_atlas import write_json
+from scripts.artifacts import package, read, write_json
 from scripts.vancouver_campus import ACCESS_METRES, WALK_METRES_PER_SECOND
 from scripts.vancouver_cityday import ORIGIN, SCALE
-from scripts.vancouver_region import package, read
 from scripts.vancouver_streets import encode_way, permissions, walk_graph
 from scripts.vancouver_transit import build as build_timetable
 from scripts.vancouver_transit_load import ride_legs

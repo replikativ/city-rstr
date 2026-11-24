@@ -8,6 +8,7 @@ import tempfile
 
 import numpy as np
 
+from scripts.artifacts import read
 from scripts.vancouver_atlas import largest_remainder
 from scripts.vancouver_cityday import compile_day, overture_venues, xy
 from scripts.vancouver_discretionary_outings import (
@@ -16,7 +17,6 @@ from scripts.vancouver_discretionary_outings import (
 )
 from scripts.vancouver_flexible_transit import protected_intervals
 from scripts.vancouver_pedestrians import routed_passages
-from scripts.vancouver_region import read
 from scripts.vancouver_streets import walk_graph
 from scripts.vancouver_trip_demand import MODES, linked_trips, destination
 from scripts.vancouver_walks import can_reach_site
