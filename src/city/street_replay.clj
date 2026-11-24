@@ -29,33 +29,27 @@
               (mapv (fn [i] [(/ (Math/round (* 1e6 (aget xs i))) 1e6)
                              (/ (Math/round (* 1e6 (aget ys i))) 1e6)]) road))))))))
 
-(defn -main [osm trip-file directory]
+(defn emit-traces! [osm trip-file emit!]
   (let [{:keys [ways edge motor-ways motor]} (speed/streets osm)
         route (road-geometry (net/scratch (net/build ways)))
         drive (speed/motor-router motor-ways motor)
-        totals (atom {})
-        hours (mapv #(io/writer (io/file directory (str % ".jsonl"))) (range 24))]
-    (try
-      (with-open [reader (io/reader trip-file)]
-        (doseq [{:keys [pid purpose mode path timestamps]} (json/read reader :key-fn keyword)
-                :let [start (first timestamps) end (peek timestamps)]
-                :when (< start end)
-                :let [original (route path)
-                      initial (when original (speed/timed-path edge original mode start end))
-                      [alternative access egress] (when (and (nil? initial) (#{"car" "transit"} mode) (next path))
-                                                   (drive (first path) (peek path)))
-                      geometry (or alternative original)
-                      times (or initial (when alternative (speed/timed-path edge alternative mode
-                                                                             (+ start access) (- end egress))))
-                      visible? (and times (< (first times) 1440) (pos? (peek times)))
-                      status (cond (or (>= start 1440) (<= end 0) (and times (not visible?))) :outsideDay
-                                   initial :shown times :rerouted geometry :infeasible :else :unrouted)
-                      _ (swap! totals update-in [mode status] (fnil inc 0))]
-                :when visible?]
-          (let [row (json/write-str {:id (str pid) :agent pid :mode mode :purpose purpose
-                                     :path geometry :times times})]
-            (doseq [hour (range (max 0 (long (Math/floor (/ (first times) 60.0))))
-                               (min 24 (long (Math/ceil (/ (peek times) 60.0)))))]
-              (.write ^java.io.Writer (hours hour) (str row "\n"))))))
-      (spit (io/file directory "timing.json") (json/write-str @totals))
-      (finally (doseq [w hours] (.close ^java.io.Writer w))))))
+        totals (atom {})]
+    (with-open [reader (io/reader trip-file)]
+      (doseq [{:keys [pid purpose mode path timestamps]} (json/read reader :key-fn keyword)
+              :let [start (first timestamps) end (peek timestamps)]
+              :when (< start end)
+              :let [original (route path)
+                    initial (when original (speed/timed-path edge original mode start end))
+                    [alternative access egress] (when (and (nil? initial) (#{"car" "transit"} mode) (next path))
+                                                 (drive (first path) (peek path)))
+                    geometry (or alternative original)
+                    times (or initial (when alternative (speed/timed-path edge alternative mode
+                                                                           (+ start access) (- end egress))))
+                    visible? (and times (< (first times) 1440) (pos? (peek times)))
+                    status (cond (or (>= start 1440) (<= end 0) (and times (not visible?))) :outsideDay
+                                 initial :shown times :rerouted geometry :infeasible :else :unrouted)
+                    _ (swap! totals update-in [mode status] (fnil inc 0))]
+              :when visible?]
+        (emit! {:id (str pid) :agent pid :mode mode :purpose purpose
+                :path geometry :times times})))
+    @totals))

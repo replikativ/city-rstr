@@ -2,6 +2,9 @@
   (:require [city.sim.network :as net]
             [city.street-replay :as replay]
             [city.street-speed :as speed]
+            [city.trajectory :as trajectory]
+            [city.vancouver.diary-clock :as clock]
+            [clojure.data.json :as json]
             [clojure.test :refer [deftest is]]))
 
 (deftest archived-waypoints-keep-street-corners-and-continuous-time
@@ -39,3 +42,23 @@
     (is (= [[a c b] 0.0 0.0] (route a b)))
     (is (nil? (route b a)))
     (is (nil? (route [9.02 48.0] b)))))
+
+(deftest municipal-replay-preserves-sample-order-and-midnight-clock
+  (let [hours (mapv (fn [_] (java.util.ArrayList.)) (range 24))
+        job {:id "da/7" :agent 7 :mode "walk" :purpose "home" :sample-order 11
+             :request [23 "walk" [0 0] [1 1] 1390 65 false]}
+        offset 0.6 duration 7.0]
+    (#'trajectory/record-route! hours {} job [[0 0] [1 1] [2 2]] [0 offset duration] duration)
+    (doseq [[h start] [[23 1390] [0 -50]]]
+      (let [[[rank record]] (hours h)
+            times (:times (json/read-str record :key-fn keyword))]
+        (is (= 11 rank))
+        (is (= (mapv double [start (+ start (* (/ offset duration) 65)) (+ start 65)])
+               (mapv double times)))))))
+
+(deftest regional-trajectory-and-roster-share-reporting-clock
+  (let [run {:regionalWorkers "cohort" :population 2}
+        times (fn [agent] (#'trajectory/leg-times [0 5] 5 240 20 agent run))]
+    (is (== 240 (first (times 1))))
+    (is (== (+ 260 (clock/phase 1)) (peek (times 1))))
+    (is (== (+ 240 (clock/phase 2)) (first (times 2))))))

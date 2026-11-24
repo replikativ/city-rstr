@@ -14,7 +14,19 @@ forecasts.
 
 To reproduce the reviewed preview from a clean checkout, follow the [release and data instructions](deploy/README.md).
 
-With the producer datasets in `public/data`, run `npm run overview:build` to regenerate the shared engine products (first rebuild the regional grocery catalogue with `python3 -m scripts.vancouver_market ../Simulations/city --data public/data/vancouver/region --continuous`), `npm run release` to compile the explorer, and `npm run preview:bundle` to assemble the checked static preview. The initial Stuttgart build reads the source archive at `../Simulations/city`. Serve the bundle with `python3 -m scripts.preview_local --directory dist/city-previews/current` and open the [local explorer](http://127.0.0.1:8191/city/).
+To regenerate a city's weekday from producer data, place the versioned datasets in `public/data` and the source archive in `../Simulations/city`. The [weekday build recipes](resources/city/weekday-builds.edn) pin the data used by each run, including the Vancouver route cache, road speeds and grocery scenario. From the project root:
+
+```sh
+clojure -M:weekday-build --city vancouver --describe
+clojure -M:weekday-build --city vancouver --verify
+clojure -M:weekday-build --city stuttgart --verify
+```
+
+`--city vancouver` selects Vancouver, UBC and the North Shore. Use `--release ID` for a municipal historical run. With no selector the build processes all four catalogue entries. `--output DIR` writes the generated overview files to a separate directory for comparisons. `--verify` checks source receipts and compares the staged files with the reviewed output checksums before installing them. At a REPL, call `(city.build/build! {:city :vancouver :verify true})` after requiring `city.build`. The existing `npm run overview:build` invokes the same Clojure entry point.
+
+The producer archive includes prepared census rosters, diaries, and routed samples. To recreate those inputs from their original sources, see [data preparation](DATA.md). For example, `python3 -m scripts.vancouver_market ../Simulations/city --data public/data/vancouver/region --continuous` rebuilds the regional grocery catalogue. The archived detailed experiments and their source descriptions are in the [Vancouver research notes](doc/vancouver.md).
+
+Run `npm run release` to compile the explorer and `npm run preview:bundle` to assemble the static preview. Serve the bundle with `python3 -m scripts.preview_local --directory dist/city-previews/current` and open the [local explorer](http://127.0.0.1:8191/city/).
 
 To regenerate offline workplace assignments and their validation runs, compile their ClojureScript adapter with `npm run offline:vancouver`. These producers load `target/offline-vancouver/workplaces.js`.
 

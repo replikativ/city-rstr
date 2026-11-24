@@ -18,7 +18,7 @@
     "url": "https://github.com/replikativ/city-rstr"
   },
   "scripts": {
-    "overview:build": "python3 -m scripts.build_overview",
+    "overview:build": "clojure -M:weekday-build",
     "preview:bundle": "python3 -m scripts.preview_bundle",
     "preview": "python3 -m scripts.preview_local",
     "watch": "clojure -M:ui -m shadow.cljs.devtools.cli watch app replay experiments",

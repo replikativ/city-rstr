@@ -1,6 +1,7 @@
 (ns city.overview-cases
   "Normalize published scenario outcomes for the shared map."
-  (:require [city.opening-hours :as hours]
+  (:require [city.build-inputs :as inputs]
+            [city.opening-hours :as hours]
             [clojure.data.json :as json]
             [clojure.java.io :as io]))
 
@@ -65,22 +66,18 @@
     [(str (if proposed? "site-" "store-") (:id store)) (:name store)
      [(- (/ x 72600.0) 123.1) (- 49.26 (/ y 111195.0))] baseline change]))
 
-(defn- vancouver [root {:keys [atlas day coverage streets regionalWorkers]}]
+(defn- vancouver [root {:keys [atlas day coverage streets]} {:keys [policy market]}]
   (let [base (if (= coverage "region") (io/file root "vancouver" "region") (io/file root "vancouver"))
-        policy (io/file base "raster" (str atlas "_" day ".json"))
-        market (io/file base "market" (str day "_" streets (when regionalWorkers "-continuous") ".json"))
         areas (:areas (read-json (io/file base "cityday" day "day.json")))]
-    (when (and regionalWorkers (not (.isFile market)))
-      (throw (ex-info "Build the regional grocery market with the continuous diary clock" {:file market})))
     (concat
-     (when (.isFile policy)
+     (when policy
        (let [report (read-json policy)]
          (when-not (= [atlas day areas] ((juxt :atlas :day :areas) report))
            (throw (ex-info "Remote-work report has different inputs" {})))
          (mapv (fn [level delta] {:label (str "Remote work · " level "% of eligible workers")
                                   :unit "residents relative to baseline" :values delta :query {:policy level}})
                [50 100] (:delta report))))
-     (when (.isFile market)
+     (when market
        (let [catalogue (read-json market)
              site (some #(when (= "3738" (:id %)) %) (:sites catalogue))]
          (when-not (= [atlas day streets] ((juxt :atlas :day :streets) catalogue))
@@ -135,7 +132,10 @@
               [(merge common {:label "Baseline grocery visits" :unit "incumbent walking visits by home area"
                               :venues (shops {} 0) :values [(mapv #(get origins % 0) areas)]})]))))))))
 
-
-
-(defn scenarios [root run]
-  (vec ((case (:city run) "stuttgart" stuttgart "vancouver" vancouver) root run)))
+(defn scenarios
+  ([root run]
+   (scenarios root run (when (= "vancouver" (:city run)) (inputs/scenario-inputs root run))))
+  ([root run inputs]
+   (vec (case (:city run)
+          "stuttgart" (stuttgart root run)
+          "vancouver" (vancouver root run inputs)))))

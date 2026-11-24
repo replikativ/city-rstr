@@ -14,6 +14,8 @@ document into a JSON file, with no parser in this repository.  Reproducing the
 demo from nothing currently requires the manual and extracted steps; scripts
 for them are open work.
 
+The [weekday build recipes](resources/city/weekday-builds.edn) enumerate the prepared inputs consumed by the four supported explorer runs. Run `clojure -M:weekday-build --city vancouver --describe` to resolve the regional recipe against local files. The detailed inventory below also covers earlier experiments. Commands for retired workbench features, including terrain, roof sections and ballot analysis, are preserved at [the archived workbench revision](https://github.com/replikativ/city-rstr/tree/ebaecc15f7d583633580b7009137393e4be892d8).
+
 ## Checking the preview sources
 
 The [weekday source register](public/sources/weekday.json) names the two saved run IDs,

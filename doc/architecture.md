@@ -69,6 +69,22 @@ the underlying observations to each city's assumptions. The compiler and replay
 use packed arrays after preparation. The retired Vancouver workbench and its
 historical saved-opening playback are preserved in the [archived revision](https://github.com/replikativ/city-rstr/tree/ebaecc15f7d583633580b7009137393e4be892d8).
 
+### Building a published weekday
+
+`city.build/build!` is the release entry point for both cities. It selects a run from the catalogue, verifies its [producer inputs](../resources/city/weekday-builds.edn), and stages the numerical day, retail outcomes and 24 hourly trajectory files. Passing `:verify true` also checks the underlying local source receipts and each generated file against the reviewed release. The browser consumes the resulting static products.
+
+Vancouver's regional roster uses a stable person index in published census-area order. The diary clock assigns each person a reproducible phase within the five-minute source bin. Presence observes that clock at whole minutes; journeys and grocery occasions use its fractional time. The municipal releases retain their original timing and sample order. Stuttgart reconstructs the geometry of its recorded waypoints. The shared trajectory publisher owns the hour boundaries and file format. Vancouver's directed-network routing adapter and the JSON number encoding used for historical content hashes still run in Node.
+
+| To change | Start here | Product to compare |
+|---|---|---|
+| A source, coverage, or fitted dataset version | [Build recipes](../resources/city/weekday-builds.edn) and [source roles](../public/sources/weekday.json) | Input receipts, cohort sizes and geography |
+| Vancouver household and workplace assignments | [Atlas preparation](../scripts/vancouver_atlas.py), [regional workplaces](../src/city/vancouver/regional_workplaces.clj) and [roster identity](../src/city/vancouver/roster.clj) | Resident IDs, institutional counts, destinations and modes |
+| The time an agent leaves, arrives, or becomes visible on a route | [Vancouver diary clock](../src/city/vancouver/diary_clock.cljc), [weekday reductions](../src/city/sim/weekday.clj) and [trajectory publisher](../src/city/trajectory.clj) | Presence, hourly trips and adjacent hours of the same route |
+| A shop-opening estimate or its interpretation | [Vancouver grocery occasions](../scripts/vancouver_market.py), [Stuttgart economic day](../src/city/econ/day.clj) and [scenario publication](../src/city/overview_cases.clj) | Visits, spending units, opening hours and incumbent losses |
+| A saved file or release pointer | [Clojure artifact publication](../src/city/artifact.clj) and [offline Python producer I/O](../scripts/artifacts.py) | File bytes, digests and retry behaviour |
+
+To add a weekday for an existing city, publish its producer manifest and catalogue entry, then add a recipe keyed by the release ID. A file pin covers its bytes. A directory pin covers filenames and file hashes, so replacing one census-area shard invalidates the pin. Source records carry their published role and locator. Use a separate `--output` directory to compare a candidate's numerical and retail outputs before updating the reviewed preview. A new city also supplies a schedule producer through [the dataset registry](../resources/city/datasets.edn), geography and a trajectory adapter.
+
 ## Representation
 
 Persons and firms are structs of arrays: one primitive array per attribute,

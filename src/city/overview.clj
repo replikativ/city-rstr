@@ -1,23 +1,23 @@
 (ns city.overview
   "Publish the same minute-by-area product for both city explorers."
-  (:require [city.weekday :as weekday]
+  (:require [city.artifact :as artifact]
+            [city.weekday :as weekday]
             [city.overview-cases :as cases]
             [city.sim.schedule-pack :as pack]
             [clojure.data.json :as json]
             [clojure.java.io :as io])
-  (:import [java.nio.file Files StandardCopyOption]
-           [java.security MessageDigest]
-           [java.util HexFormat]))
+  (:import [java.nio.file Files]))
 
 (defn- read-json [file]
   (with-open [r (io/reader file)] (json/read r :key-fn keyword)))
 
-(defn- geography [root {:keys [city atlas coverage release]}]
+(defn- geography [root {:keys [city atlas coverage release]} inputs]
   (case city
     "stuttgart" (into {} (for [f (:features (read-json (io/file root city release "areas-stadtteil.json")))]
                             [(get-in f [:properties :eid]) (:geometry f)]))
-    "vancouver" (let [dir (if (= coverage "region") (io/file root city "region") (io/file root city))]
-                  (into {} (for [[area v] (:areas (read-json (io/file dir "atlas" atlas "atlas.json")))]
+    "vancouver" (let [base (if (= coverage "region") (io/file root city "region") (io/file root city))
+                      roster (or (:roster inputs) (io/file base "atlas" atlas))]
+                  (into {} (for [[area v] (:areas (read-json (io/file roster "atlas.json")))]
                              [(name area) (:geometry v)])))))
 
 (defn scene [day shapes]
@@ -35,22 +35,16 @@
      :flows (:od-flows day) :presence (:presence day) :arrivals (get-in day [:trip-ends :arrivals])
      :departures (get-in day [:trip-ends :departures])}))
 
-(defn- publish-file! [file bytes]
-  (io/make-parents file)
-  (let [path (.toPath file)
-        temp (Files/createTempFile (.getParent path) ".scene-" ".tmp" (make-array java.nio.file.attribute.FileAttribute 0))]
-    (try (with-open [out (io/output-stream (.toFile temp))] (.write out ^bytes bytes))
-         (.setReadable (.toFile temp) true false)
-         (Files/move temp path (into-array StandardCopyOption [StandardCopyOption/ATOMIC_MOVE StandardCopyOption/REPLACE_EXISTING]))
-         (finally (Files/deleteIfExists temp)))))
-
-(defn publish-cases! [root run]
-  (let [bytes (.getBytes (json/write-str (cases/scenarios root run)) "UTF-8")
-        hash (.formatHex (HexFormat/of) (.digest (MessageDigest/getInstance "SHA-256") bytes))
-        dir (io/file root "overview")]
-    (publish-file! (io/file dir (str hash ".json")) bytes)
-    (publish-file! (io/file dir (str (:release run) "-cases.json"))
-                   (.getBytes (json/write-str {:release (:release run) :cases hash}) "UTF-8"))))
+(defn publish-cases!
+  ([root run] (publish-cases! root run nil))
+  ([root run inputs]
+   (let [scenarios (if inputs (cases/scenarios root run inputs) (cases/scenarios root run))
+         bytes (.getBytes (json/write-str scenarios) "UTF-8")
+         hash (artifact/sha256 bytes)
+         dir (io/file root "overview")]
+     (artifact/publish-file! (io/file dir (str hash ".json")) bytes)
+     (artifact/publish-file! (io/file dir (str (:release run) "-cases.json"))
+                             (.getBytes (json/write-str {:release (:release run) :cases hash}) "UTF-8")))))
 
 (defn- write-agent! [^java.io.DataOutputStream out stops]
   (let [append (fn [rows [minute lon lat]]
@@ -86,35 +80,40 @@
                           (fn [stops]
                             (write-agent! out stops)
                             (vswap! seen inc)))))
-            bytes (Files/readAllBytes (.toPath temp))
-            hash (.formatHex (HexFormat/of) (.digest (MessageDigest/getInstance "SHA-256") bytes))]
+            hash (artifact/sha256-file temp)]
         (when-not (= n @seen) (throw (ex-info "Incomplete agent positions" {:expected n :actual @seen})))
-        (publish-file! (io/file dir (str hash ".gz")) bytes)
+        (artifact/publish-staged-file! temp (io/file dir (str hash ".gz")))
         [day hash])
       (finally (Files/deleteIfExists (.toPath temp))))))
 
-(defn -main [data-root release]
-  (when-not (re-matches #"[0-9a-f]{64}" release) (throw (ex-info "Expected a published run ID" {})))
-  (let [root (io/file data-root)
-        run (read-json (io/file root "runs" (str release ".json")))
-        _ (when-not (= release (:release run)) (throw (ex-info "Release identity mismatch" {})))
+(defn publish-day!
+  "Prepare and publish the roster, packed schedules, numerical products and scenarios."
+  [root {:keys [release] :as run} inputs]
+  (let [root (io/file root)
         city (:city run)
         dir (if (= "region" (:coverage run)) (io/file root city "region") (io/file root city))
-        [prepared agents] (prepare-positions! root (assoc run :root (.getPath dir)
-                                   :boundary-file (io/file root city release "areas-stadtteil.json")))
+        [prepared agents] (prepare-positions! root (assoc run :root (.getPath dir) :producer-inputs inputs
+                                                          :boundary-file (io/file root city release "areas-stadtteil.json")))
         result (weekday/execute prepared :jvm #{:presence :trip-ends :od-flows})
-        bytes (.getBytes (json/write-str (scene result (geography root run))) "UTF-8")
-        hash (.formatHex (HexFormat/of) (.digest (MessageDigest/getInstance "SHA-256") bytes))]
-    (publish-file! (io/file root "overview" (str hash ".json")) bytes)
+        bytes (.getBytes (json/write-str (scene result (geography root run inputs))) "UTF-8")
+        hash (artifact/sha256 bytes)]
+    (artifact/publish-file! (io/file root "overview" (str hash ".json")) bytes)
     (let [dir (io/file root "overview")
           temp (java.io.File/createTempFile ".schedules-" ".gz" dir)]
       (try
         (pack/write-pack! temp prepared)
-        (let [bytes (Files/readAllBytes (.toPath temp))
-              digest (.formatHex (HexFormat/of) (.digest (MessageDigest/getInstance "SHA-256") bytes))]
-          (publish-file! (io/file dir (str digest ".gz")) bytes)
-          (publish-file! (io/file dir (str release ".json"))
+        (let [digest (artifact/sha256-file temp)]
+          (artifact/publish-staged-file! temp (io/file dir (str digest ".gz")))
+          (artifact/publish-file! (io/file dir (str release ".json"))
                          (.getBytes (json/write-str {:release release :scene hash :schedules digest :agents agents}) "UTF-8")))
         (finally (Files/deleteIfExists (.toPath temp)))))
-    (publish-cases! root run)
-    (println city release hash)))
+    (publish-cases! root run inputs)
+    {:city city :release release :scene hash}))
+
+(defn -main [data-root release]
+  (when-not (re-matches #"[0-9a-f]{64}" release)
+    (throw (ex-info "Expected a published run ID" {})))
+  (let [run (read-json (io/file data-root "runs" (str release ".json")))]
+    (when-not (= release (:release run))
+      (throw (ex-info "Release identity mismatch" {})))
+    (println (publish-day! data-root run nil))))
