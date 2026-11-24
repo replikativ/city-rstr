@@ -20,3 +20,11 @@
 #shop-comparison {display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:0;font-variant-numeric:tabular-nums}
 #shop-comparison[hidden],#shop-comparison dd:empty,#shop-comparison dt:has(+ dd:empty) {display:none}
 #shop-comparison dd {margin:0;text-align:right}
+
+#retired-vancouver {
+  margin: 0;
+  padding: 6px clamp(8px, 2vw, 24px);
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 13px;
+}

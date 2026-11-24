@@ -1,7 +1,7 @@
 // Time index for drawing everyone walking to or from one scheduled service.
 import {readFileSync,writeFileSync} from "node:fs";
 import {join} from "node:path";
-import {onwardRide,rideTiming} from "../public/lab/transit-passenger.js";
+import {onwardRide,rideTiming} from "./transit-passenger.js";
 
 const [root,riders,out]=process.argv.slice(2),read=p=>JSON.parse(readFileSync(join(root,p)));
 const riderDir="transit-riders/"+riders+"/",report=read(riderDir+"riders.json"),{versions}=report;

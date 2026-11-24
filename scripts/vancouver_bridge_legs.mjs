@@ -12,7 +12,7 @@ const population = read(atlasRoot + "atlas.json"), day = read(dayRoot + "day.jso
 let work, paid, expectedChanges = 0;
 const riding = new Set();
 if (versions.outbound) {
-  const { residentTrips } = await import("../public/js/vancouver/workplaces.js");
+  const { residentTrips } = await import("../target/offline-vancouver/workplaces.js");
   const outboundRoot = "outbound/" + versions.outbound + "/";
   const outbound = read(outboundRoot + "report.json");
   const worksites = read("worksites/" + versions.worksites + "/worksites.json");

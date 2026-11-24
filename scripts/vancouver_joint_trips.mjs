@@ -1,7 +1,7 @@
 // Extract the legs of the tract-fitted replay using its ClojureScript workplace resolver.
 import {readFileSync,writeFileSync} from "node:fs";
 import {join} from "node:path";
-import {residentTrips} from "../public/js/vancouver/workplaces.js";
+import {residentTrips} from "../target/offline-vancouver/workplaces.js";
 
 const [root,input,output]=process.argv.slice(2);
 const read=path=>JSON.parse(readFileSync(join(root,path),"utf8"));

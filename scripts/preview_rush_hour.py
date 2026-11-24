@@ -161,7 +161,8 @@ def render(public, release):
         links.append(f'<a href="{escape(dataset["source"])}">{title}</a>')
     return ('<h3 id="downtown-rush-hour">Downtown rush hour</h3>'
             '<p>Trips between Downtown and another known area, including external worker origins. Local time, all purposes. '
-            'Arrivals use the destination clock and departures use the origin clock.</p>'
+            'Arrivals and departures use the published weekday’s rounded diary times. '
+            'The map spreads events within each five-minute diary bin.</p>'
             + table(headers, rows)
             + '<details><summary>Trip ends by mode</summary>' + table(headers, mode_rows) + '</details>'
             + '<details><summary>Resident trips with a workplace at the Downtown end</summary>'

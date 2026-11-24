@@ -54,19 +54,20 @@ evidence store, the only thing persisted between processes is the posterior
 
 ### Browser database and city replay
 
-The browser Datahike database indexes Stuttgart and Vancouver weekdays in IndexedDB. A published run identifies the city, geographic coverage and release. Stuttgart runs carry district turnover distributions. Vancouver runs identify the population, daily schedules and street network. The municipal run also records the number of census areas when both membership and population reconcile to the geographic audit. The library links that figure to the audit for the selected release.
+The Datahike library indexes published city runs by release in IndexedDB.
+Each run selects a prepared schedule, a minute-by-area scene, 24 local-clock
+street-trace shards and a scenario catalogue. The ClojureScript explorer uses the
+same map, clock and resident inspector for both cities. The map interpolates
+street coordinates between successive timestamps and can show the whole roster
+at its latest modeled stops. Display sampling is independent of the population
+used to compute movement and retail results.
 
-A saved shop opening links its market, hours, storefront and visits. A played opening also stores its effective minute. A resident in a saved visit is identified by city, atlas release, census area and position within that area's roster. The map resolves that identity against the release that generated the visit. Trip-demand queries also use this database. The renderer and Raster kernels read dense arrays directly from versioned files. Vancouver applies an opening action to the current weekday by recomputing the destinations of eligible shoppers who have yet to set off. Both map views use the resulting destinations and the same clock.
-
-The two weekday maps share the timed path contract and the position interpolation in `city.ui.timeline`. Stuttgart exports sampled paths and timestamps after routing its chosen destinations. Vancouver resolves the displayed sample's current paths in a worker and caches results by endpoints, mode and time budget. Both forms feed a map at a point on the simulation clock.
-
-`city.ui.replay-shell` connects the playback controls, inspector and result card to each city's replay. Stuttgart mounts it from the ClojureScript explorer, and Vancouver uses the ESM adapter in `city.ui.replay`. The shared layout uses the simm.is palette. Each city supplies its map layers, clock range, scenario results and evidence.
-
-`city.replay` supplies common rules for selecting published runs and building weekday links. The top-bar City selector opens the target city's preferred weekday at the displayed local time. The scenario picker and the run library use the same catalogue ordering. Vancouver's study-area switch opens the preferred published run for the target area and carries the displayed minute and selected transit service. Resident selections and interventions tied to the source release end at either boundary. The target timetable resolves service availability.
-
-`city.resident/visit-at` resolves the current inbound leg, stop or outbound leg from a scheduled visit and a replay minute. Vancouver's recorded grocery walks use that contract with the market's chosen storefront, the released pedestrian graph and the diary's walking-time budget. The overview, resident inspector and street actors use the same position and path. When a walk cannot be routed within the diary time, the inspector reports an unresolved position.
-
-Stuttgart uses `city.resident/trace-at` to follow a sampled resident along the published baseline legs. The Milaneo scenario can pick a baseline shopping leg whose endpoint matches a closed venue's coordinates at the published precision. The scenario export describes counterfactual visits by venue. Individual replacement routes need their own traces.
+Stuttgart supplies its street reconstruction and baseline and counterfactual
+spending products. Vancouver supplies a regional synthetic roster, attending
+external workers, routed samples and walking grocery occasions. Model pages link
+the underlying observations to each city's assumptions. The compiler and replay
+use packed arrays after preparation. The retired Vancouver workbench and its
+historical saved-opening playback are preserved in the [archived revision](https://github.com/replikativ/city-rstr/tree/ebaecc15f7d583633580b7009137393e4be892d8).
 
 ## Representation
 

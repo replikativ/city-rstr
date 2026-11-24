@@ -8,50 +8,14 @@
                 :devtools {:after-load city.ui.app/reload!}}
           :replay {:target :esm
                    :output-dir "public/js/replay"
-                   :modules {:replay {:exports {createMap city.ui.map-view/create-map
-                                                overviewColors city.ui.map-view/overview-colors
-                                                preferredRun city.ui.replay/preferred-run
+                   :modules {:replay {:exports {preferredRun city.ui.replay/preferred-run
                                                 weekdayQuery city.ui.replay/weekday-query
-                                                cityLink city.ui.replay/city-link
-                                                changeStudyArea city.ui.replay/change-study-area
-                                                visitAt city.ui.replay/visit-at
-                                                mountInspector city.ui.replay/mount-inspector
-                                                mountClock city.ui.replay/mount-clock
-                                                renderResult city.ui.replay/render-result}}}}
+                                                cityLink city.ui.replay/city-link}}}}
           :experiments {:target :esm
                         :output-dir "public/js/experiments"
                         :modules {:saved {:exports {releaseManifest city.ui.experiments/release-manifest
                                                    indexManifest city.ui.experiments/index-manifest!
-                                                   listSaved city.ui.experiments/list-saved
-                                                   save city.ui.experiments/save!
-                                                   details city.ui.experiments/details
-                                                   initLibrary city.ui.run-library/init
-                                                   openingLink city.ui.run-library/opening-link
-                                                   initDemand city.ui.trip-demand/init
-                                                   initTiming city.ui.trip-demand/init-timing
-                                                   initNorthDemand city.ui.trip-demand/init-north}}}}
-          :vancouver {:target :esm
-                      :output-dir "public/js/vancouver"
-                      :modules {:workplaces {:exports {loadWorkers city.ui.vancouver.workplaces/load-workers
-                                                       residentTrips city.ui.vancouver.workplaces/resident-trips
-                                                       projectMarket city.ui.vancouver.workplaces/project-market
-                                                       combineMarket city.ui.vancouver.cycle-market/combine
-                                                       openingHours city.ui.vancouver.workplaces/opening-hours}}
-                                :departures {:depends-on #{:workplaces}
-                                              :exports {init city.ui.vancouver.departures/init
-                                                        loadClock city.ui.vancouver.departures/load-clock}}
-                                :shopping-evidence {:depends-on #{:workplaces}
-                                                    :exports {init city.ui.vancouver.shopping-evidence/init
-                                                              initAccess city.ui.vancouver.shopping-evidence/init-access}}
-                                :cycle-counts {:depends-on #{:workplaces}
-                                               :exports {init city.ui.vancouver.cycle-counts/init}}
-                                :cycle-tours {:depends-on #{:workplaces}
-                                              :exports {init city.ui.vancouver.cycle-tours/init}}
-                                :pedestrians {:depends-on #{:workplaces}
-                                              :exports {init city.ui.vancouver.pedestrians/init}}
-                                :bridge-queue {:depends-on #{:workplaces}
-                                               :exports {replay city.sim.road-queue/queue-js}}
-                                :hired-dispatch {:depends-on #{:workplaces}
-                                                 :exports {simulate city.vancouver.dispatch/simulate-js}}
-                                :route-timeline {:depends-on #{:workplaces}
-                                                 :exports {track city.ui.vancouver.route-timeline/track}}}}}}
+                                                   initLibrary city.ui.run-library/init}}}}
+          :offline-vancouver {:target :esm
+                              :output-dir "target/offline-vancouver"
+                              :modules {:workplaces {:exports {residentTrips city.vancouver.offline-workplaces/resident-trips}}}}}}

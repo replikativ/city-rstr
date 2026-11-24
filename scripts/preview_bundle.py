@@ -3,107 +3,91 @@ import argparse
 import gzip
 import hashlib
 import json
-import os
 import re
 import shutil
 import tempfile
-from collections import defaultdict
 from pathlib import Path
+
+from html.parser import HTMLParser
+from urllib.parse import urlsplit
 
 from scripts.preview_sources import PUBLIC
 
-# City data releases use 20 hex digits and run/market manifests use 64.
-VERSION = re.compile(rb"(?<![0-9a-f])(?:[0-9a-f]{64}|[0-9a-f]{20})(?![0-9a-f])")
-PUBLIC_TYPES = {".json", ".geojson", ".bin", ".png", ".webp", ".jpg", ".pbf", ".gz", ".js", ".css", ".txt"}
+class EvidenceLinks(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.paths = set()
 
-
-def version_ids(data):
-    return set(VERSION.findall(data))
+    def handle_starttag(self, tag, attrs):
+        for key, value in attrs:
+            if key in {"src", "href"} and value and value.startswith("data/"):
+                self.paths.add(Path(urlsplit(value).path))
 
 
 def assets(public, data):
-    """Resolve immutable release folders and composite lookup keys to a fixed point."""
-    known = set()
-    selected = {}
-    families = defaultdict(list)
-    for path in shell_files(public):
-        rel = path.relative_to(public)
-        if rel.parts[0] == "data" or any(part.startswith(".") for part in rel.parts) or not path.is_file():
-            continue
-        selected[rel] = path
-        if path.suffix in {".js", ".html", ".json"}:
-            known.update(version_ids(path.read_bytes()))
-    for folder, dirs, files in os.walk(data):
-        dirs[:] = sorted(name for name in dirs if not name.startswith((".", "tmp")))
-        for name in sorted(files):
-            path = Path(folder, name)
-            if name.startswith(".") or path.suffix not in PUBLIC_TYPES:
-                continue
-            rel = path.relative_to(data)
-            families[frozenset(version_ids(rel.as_posix().encode()))].append((Path("data") / rel, path))
-    while True:
-        ready = [key for key in families if key <= known]
-        if not ready:
-            return selected
-        for key in ready:
-            for rel, path in families.pop(key):
-                selected[rel] = path
-                # Per-area roster shards, coordinate arrays and tile data contain
-                # no release links. Named JSON reports and pointers do.
-                if path.suffix == ".json" and not path.stem.isdecimal():
-                    known.update(version_ids(path.read_bytes()))
+    # Ignored browser output directories can still contain retired builds.
+    compiled = ("js/app/main.js", "js/experiments/saved.js", "js/replay/replay.js")
+    files = {p.relative_to(public): p for child in public.iterdir() if child.name not in {"data", "js"}
+             for p in (child.rglob("*") if child.is_dir() else [child]) if p.is_file()
+             and not any(part.startswith(".") for part in p.relative_to(public).parts)}
+    for name in compiled:
+        path = public / name
+        if not path.is_file():
+            raise ValueError(f"Missing {name}. Compile the explorer with npm run release.")
+        files[Path(name)] = path
 
+    def include(rel, checksum=None):
+        rel = Path(rel)
+        if rel.is_absolute() or ".." in rel.parts:
+            raise ValueError(f"Invalid data path: {rel}")
+        path = data / rel
+        if not path.is_file():
+            raise ValueError(f"Missing published data: {rel}")
+        if checksum:
+            with path.open("rb") as stream:
+                if hashlib.file_digest(stream, "sha256").hexdigest() != checksum:
+                    raise ValueError(f"Checksum mismatch: {rel}")
+        files[Path("data") / rel] = path
+        return path
 
-def shell_files(public):
-    for child in sorted(public.iterdir()):
-        if child.name != "data":
-            if child.is_dir():
-                yield from child.rglob("*")
-            else:
-                yield child
-
-
-def check_roots(files, data):
-    pinned = json.loads(files[Path("sources/weekday.json")].read_text())["runs"]
-    catalog = json.loads((data / "runs/current.json").read_text())
-    for entry in pinned:
-        if not any(r["release"] == entry["release"] and r["city"] == entry["city"] for r in catalog):
-            raise ValueError(f"Preview catalogue is missing the pinned {entry['city']} weekday")
+    catalog = json.loads(include("runs/current.json").read_text())
+    pinned = json.loads((public / "sources/weekday.json").read_text())["runs"]
+    if not all(any(r["city"] == p["city"] and r["release"] == p["release"] for r in catalog) for p in pinned):
+        raise ValueError("Catalogue is missing a cited weekday")
     for run in catalog:
         release = run["release"]
-        record = json.loads(files[Path("data/runs", release + ".json")].read_text())
-        if record["release"] != release:
-            raise ValueError(f"Run manifest mismatch for {release}")
-        overview = Path("data/overview")
+        if not re.fullmatch("[0-9a-f]{64}", release):
+            raise ValueError(f"Invalid run ID: {release}")
+        manifest = json.loads(include(f"runs/{release}.json").read_text())
+        if (manifest["release"], manifest["city"]) != (release, run["city"]):
+            raise ValueError(f"Invalid run manifest: {release}")
+
         def pointer(suffix):
-            p = json.loads(files[overview / (release + suffix + ".json")].read_text())
-            if p["release"] != release:
+            obj = json.loads(include(f"overview/{release}{suffix}.json").read_text())
+            if obj["release"] != release:
                 raise ValueError(f"Overview pointer belongs to another release: {release}{suffix}")
-            return p
+            return obj
+
         scene, traces, cases = pointer(""), pointer("-traces"), pointer("-cases")
         if len(traces["hours"]) != 24:
-            raise ValueError(f"Incomplete local day for {release}")
+            raise ValueError(f"Incomplete day: {release}")
         shards = {scene["scene"], traces["roads"], cases["cases"], *traces["hours"]}
         if run["city"] == "stuttgart":
             shards.add(traces["origins"])
-        for digest, suffix in [(s, ".json") for s in shards] + [(scene[k], ".gz") for k in ("schedules", "agents")]:
-            with files[overview / (digest + suffix)].open("rb") as stream:
-                if hashlib.file_digest(stream, "sha256").hexdigest() != digest:
-                    raise ValueError(f"Overview file changed: {digest}")
-        if run["city"] == "stuttgart":
-            for name, expected in record["files"].items():
-                with files[Path("data/stuttgart", release, name)].open("rb") as stream:
-                    if hashlib.file_digest(stream, "sha256").hexdigest() != expected:
-                        raise ValueError(f"Stuttgart export changed: {name}")
-        else:
-            root = Path("data/vancouver")
-            if run["coverage"] == "region":
-                root /= "region"
-            for family, key, name in [("atlas","atlas","atlas.json"),("cityday","day","day.json"),
-                                      ("streets","streets","network.json"),("streets","streets","maplibre-gl.js"),
-                                      ("streets","streets","maplibre-gl.css"),("streets","streets","LICENSE.txt")]:
-                if root / family / run[key] / name not in files:
-                    raise ValueError(f"Missing {family} for {release}")
+            for name, digest in manifest["files"].items():
+                include(Path("stuttgart", release, name), digest)
+        for ext, digests in (("json", shards), ("gz", {scene["schedules"], scene["agents"]})):
+            for digest in digests:
+                if not re.fullmatch("[0-9a-f]{64}", digest):
+                    raise ValueError(f"Invalid overview checksum: {digest}")
+                include(f"overview/{digest}.{ext}", digest)
+
+    links = EvidenceLinks()
+    for html in public.glob("*.html"):
+        links.feed(html.read_text())
+    for path in links.paths:
+        include(path.relative_to("data"))
+    return files
 
 
 def main():
@@ -113,6 +97,7 @@ def main():
     parser.add_argument("--pinned-data", action="store_true",
                         help="Select and verify the exact data files recorded for the reviewed release")
     args = parser.parse_args()
+    files = assets(PUBLIC, args.data)
     expected = {}
     if args.pinned_data:
         with gzip.open(PUBLIC.parent / "deploy/weekday-data.sha256.gz", "rt") as stream:
@@ -123,15 +108,9 @@ def main():
                         or ".." in rel.parts or rel in expected):
                     parser.error(f"Invalid pinned data entry: {name}")
                 expected[rel] = digest
-        files = {path.relative_to(PUBLIC): path for path in shell_files(PUBLIC)
-                 if path.is_file() and not any(p.startswith(".") for p in path.relative_to(PUBLIC).parts)}
-        files.update({rel: args.data.joinpath(*rel.parts[1:]) for rel in expected})
-    else:
-        files = assets(PUBLIC, args.data)
-    check_roots(files, args.data)
-    for name in ("explorer.html", "lab/overview.css", "js/app/main.js", "js/experiments/saved.js", "js/vancouver/workplaces.js", "js/replay/replay.js"):
-        if Path(name) not in files:
-            parser.error(f"Compile the browser with npm run release first. Missing {name}")
+        actual = {rel for rel in files if rel.parts[0] == "data"}
+        if actual != expected.keys():
+            parser.error("Reviewed inventory differs from the explorer data dependencies")
     args.output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=args.output) as tmp:
         stage = Path(tmp) / "city"

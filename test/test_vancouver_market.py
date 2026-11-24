@@ -8,17 +8,10 @@ import numpy as np
 from scripts.vancouver_cityday import compile_day
 from scripts.vancouver_streets import access_graph
 from scripts.vancouver_household_market import household_band
-from scripts.vancouver_housing_market import food_loss
 from scripts.vancouver_market import publish_market, read, feasible, grocery_draw, locate, score, walk_graph, windows
 
 
 class MarketTest(unittest.TestCase):
-    def test_shelter_sensitivity_preserves_baseline_and_bounds_the_reduction(self):
-        self.assertEqual(food_loss(8000, 1500, 50000, 0), 0)
-        self.assertEqual(food_loss(8000, 1500, 50000, 10), 450)
-        self.assertEqual(food_loss(8000, 1500, 15000, 10), 1800)
-        self.assertEqual(food_loss(8000, 4000, 15000, 20), 8000)
-
     def test_cycle_store_requires_forward_access_and_onward_time(self):
         graph, snap = access_graph({"nodes": [[0, 0], [80, 0], [80, 200]], "ways": [[8, 0, [0, 1, 2, 0]]]}, 8, 16)
         coords = np.array([[0, 0], [80, 0], [80, 200]])

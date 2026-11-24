@@ -74,6 +74,11 @@ explorer and must be used under that provider's terms.
 
 ## Vancouver material from the early prototype
 
+The source inventory below also covers retired experiments. Their code and
+reproduction commands are available in the [workbench archive](https://github.com/replikativ/city-rstr/tree/ebaecc15f7d583633580b7009137393e4be892d8).
+The [weekday register](public/sources/weekday.json) identifies the sources cited by
+the current explorer.
+
 The earlier city checkout at `../Simulations/city` retains local inputs under
 `data/derived/`. Its Git commit `af0c795f0^` (the parent of the Stuttgart-only
 change) contains the earlier loaders. The files below are candidates for a new

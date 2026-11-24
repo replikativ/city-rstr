@@ -105,6 +105,7 @@
 
 (defn init []
   (let [url (js/URL. (.-href js/location)) q (.-searchParams url)
+        retired-vancouver? #(and (= "vancouver" (.get q "retired")) (= "vancouver" (.get q "city")))
         camera (return-camera q)
         initial (js/Number (or (.get q "minute") 480))
         state (atom {:minute (if (and (js/Number.isInteger initial) (<= 0 initial 1439)) initial 480)})
@@ -237,6 +238,9 @@
                     (.set q "basket" (.-value (el "basket")))
                     (.delete q "basket"))
                   (.set q "metric" (.-value (el "metric")))
+                  (when (not= city "vancouver")
+                    (.delete q "retired")
+                    (set! (.-hidden (el "retired-vancouver")) true))
                   (.set q "city" city) (.set q "release" (.-release run)) (.set q "minute" (str minute))
                   (js/history.replaceState nil "" (.-href url)))))
             (limit-of [total]
@@ -505,7 +509,9 @@
                                                                  #js ["interpolate" #js ["linear"] #js ["zoom"] 8 0.04 11 0.13 15 0.4]
                                                                  0.48))
                                             (.setData (.getSource m "roads") roads)
-                                            (if-let [saved (when (= id (.get q "release")) (return-camera q))]
+                                            (if-let [saved (when (or (= id (.get q "release"))
+                                                                     (and (retired-vancouver?) (= "vancouver" (.-city run)) (= "region" (.-coverage run))))
+                                                               (return-camera q))]
                                               (.jumpTo m saved)
                                               (.fitBounds m (bounds (aget s "geography")) #js {:padding 45 :duration 0}))
                                             (set! (.-disabled (.querySelector js/document "[data-replay-menu]")) false)
@@ -526,14 +532,17 @@
                   (.then (fn [rows]
                            (let [runs (js->clj rows :keywordize-keys true)
                                  by-id (into {} (map (juxt :release identity) runs))
-                                 run (or (by-id (.get q "release"))
+                                 run (if (retired-vancouver?)
+                                       (replay/preferred-run runs "vancouver" "region")
+                                       (or (by-id (.get q "release"))
                                          (first (filter #(and (= (.get q "city") (:city %)) (= "region" (:coverage %))) runs))
                                          (first (filter #(= (.get q "city") (:city %)) runs))
-                                         (first runs))]
+                                         (first runs)))]
                              (when (and (.has q "release") (nil? (by-id (.get q "release"))))
                                (swap! state assoc :replacement (:release run)))
                              (.replaceChildren (el "run"))
-                             (when-not run (throw (js/Error. "No published weekdays are available.")))
+                             (when-not run (throw (js/Error. (if (retired-vancouver?) "The Vancouver regional weekday is unavailable."
+                                                               "No published weekdays are available."))))
                              (doseq [city (distinct (map :city runs))]
                                (option! "run" (str (.toUpperCase (subs city 0 1)) (subs city 1)) city))
                              (set! (.-value (el "run")) (:city run))

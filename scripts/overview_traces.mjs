@@ -3,9 +3,9 @@ import {readFileSync,writeFileSync,renameSync,mkdirSync,mkdtempSync,rmSync} from
 import {execFileSync} from "node:child_process";
 import {join} from "node:path";
 import {createHash} from "node:crypto";
-import {Network,lngLat,roadMode,BIKE,CAR,WALK} from "../public/lab/vancouver-network.js";
-import {findRoute,routeKey} from "../public/lab/weekday-pathfinder.js";
-import {bicycleMetresPerMinute} from "../public/lab/street-pedestrians.js";
+import {Network,lngLat,roadMode,BIKE,CAR,WALK} from "./vancouver-network.js";
+import {findRoute,routeKey} from "./weekday-pathfinder.js";
+import {bicycleMetresPerMinute} from "./street-pedestrians.js";
 
 const root=process.argv[2]??"public/data";
 const out=join(root,"overview");

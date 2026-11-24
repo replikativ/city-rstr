@@ -2,6 +2,7 @@
 <body class="replay-shell" id="weekday-explorer">
 <header class="masthead replay-masthead"><a class="wordmark" href="https://simm.is">simm<span>is</span></a><label class="replay-city-picker">City <select id="run" disabled></select></label><a id="evidence" href="weekday-sources.html" target="_blank" rel="noopener" aria-label="Model &amp; evidence (opens in a new tab)">Model &amp; evidence</a><button type="button" class="replay-menu-button" data-replay-menu="stuttgart" disabled>Scenarios</button></header>
 <main class="replay-main"><header class="replay-titlebar"><h1>City weekday</h1><output id="status" class="replay-status" role="status">Loading simulation…</output></header>
+<p id="retired-vancouver" role="status" hidden>The earlier Vancouver workbench has been retired. Its scenarios and saved experiments cannot be replayed here. This map opens the published regional weekday.</p>
 <section class="replay-stage" aria-label="Weekday map"><div id="overview-map" class="replay-map"></div><details class="overview-panel" open><summary>Map layers</summary><div class="overview-tools"><label>Area overlay <select id="metric"><option value="none">None</option><option value="density">People present / km²</option><option value="presence">People present (count)</option><option value="arrivals">Hourly arrivals</option><option value="departures">Hourly departures</option></select></label>
 <div id="trace-control"><label>People <select id="people-mode"><option value="routes">Moving people · street paths</option><option value="roster">Population · last modeled stops</option></select></label>
 <label>Map marker limit <input type="number" id="agent-limit" min="0" step="1" value="500"></label>
@@ -12,7 +13,9 @@
 <dl id="shop-comparison" hidden><dt>Baseline</dt><dd id="shop-baseline"></dd><dt>Spending change</dt><dd id="shop-change"></dd><dt>With opening</dt><dd id="shop-with-opening"></dd><dt>Visit change this hour</dt><dd id="shop-hour"></dd><dt>Sales change so far</dt><dd id="shop-so-far"></dd><dt>90% interval for change</dt><dd id="shop-interval"></dd></dl><label>Area <select id="area"></select></label><output id="count"></output><output id="legend"></output><output id="flows"></output><output id="od-legend"></output><button type="button" id="reset-area">Fit city to map</button><output id="person"></output><button id="follow-person" hidden aria-pressed="false">Follow traveller</button><button id="clear-person" hidden>Clear selection</button></div></details><output id="agent-count" class="overview-map-key"></output></section>
 <footer class="overview-clock"><button id="play" disabled>Play</button><output id="clock">08:00</output><input id="minute" aria-label="Local time" type="range" min="0" max="1439" value="480"><label>Speed <select id="speed"><option value="1">1× real time</option><option value="10" selected>10×</option><option value="60">60×</option><option value="300">300×</option><option value="900">900×</option></select></label></footer></main>
 <script>
-const requestedCity = new URLSearchParams(location.search).get("city");
+const query = new URLSearchParams(location.search);
+const requestedCity = query.get("city");
+document.getElementById("retired-vancouver").hidden = requestedCity !== "vancouver" || query.get("retired") !== "vancouver";
 const loadingCity = requestedCity === "vancouver" ? "Vancouver" : "Stuttgart";
 document.getElementById("run").add(new Option(loadingCity, loadingCity.toLowerCase()));
 </script>

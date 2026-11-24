@@ -1,5 +1,12 @@
 # A Vancouver weekday
 
+This research log records the experiments, data sources and findings of the
+[archived Vancouver workbench](https://github.com/replikativ/city-rstr/tree/ebaecc15f7d583633580b7009137393e4be892d8).
+Workbench controls and reproduction commands below refer to that revision.
+For the current release see the [regional model](../public/vancouver-methods.html)
+and [evidence](../public/vancouver-model.html).
+
+
 The first market question is how opening a grocery at either of two Mount Pleasant storefronts changes trips and shopping visits. The first executable component models the day that creates those trips. It assigns a resident a complete sequence of activities and estimates the time spent in each activity, by hour, for Vancouver and its 22 local areas. Destination choice, routing, household coordination and store visits are subsequent components.
 
 ## Current municipal weekday

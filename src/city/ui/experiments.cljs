@@ -3,7 +3,6 @@
   (:require [cljs.core.async :as async]
             [datahike.api :as d]
             [city.experiment :as experiment]
-            [city.trip-evidence :as evidence]
             [konserve.indexeddb]
             [konserve.memory :as memory]
             [konserve.tiered]))
@@ -42,25 +41,6 @@
           (.then (fn [conn]
                    (-> (js/Promise.resolve nil) (.then #(ensure-schema conn)) (.then #(operation conn))
                        (.finally #(d/release conn)))))))))
-
-(defn list-saved [city]
-  (access #(clj->js (experiment/openings @% city))))
-
-(defn save! [snapshot]
-  (let [[id tx] (experiment/transaction (js->clj snapshot) (.now js/Date))]
-    (access (fn [conn] (-> (result (d/transact! conn tx)) (.then (fn [_] id)))))))
-
-(defn details [id]
-  (access #(clj->js (experiment/opening @% id))))
-
-(defn trip-cells [version report]
-  (let [{:strs [city atlas day] :as data} (js->clj report)
-        id (evidence/release-id city atlas day version)]
-    (access (fn [conn]
-              (-> (js/Promise.resolve
-                    (when-not (evidence/present? @conn id)
-                      (result (d/transact! conn (evidence/transaction id data)))))
-                  (.then #(clj->js (evidence/cells @conn id))))))))
 
 (defn release-manifest [city release]
   (access #(clj->js (experiment/release-manifest @% city release))))

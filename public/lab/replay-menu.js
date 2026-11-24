@@ -1,62 +1,5 @@
 import {cityLink,preferredRun,weekdayQuery} from "../js/replay/replay.js";
 
-const council="997ee475666d9cba5fd8";
-const municipalDay="4f711d78c7e0f40698dd7dd0c10df51d85429318e20d12572de0bebaa5cc88a5";
-const homeZoneDay="1fa75ab09e40f61cb1eb2a40a0e4b6006c3a48e5c0a00e918e0dcaec0f347796";
-const region="06c504c638de40f775a7";
-const bridgeChoice="6f09a6463ee864dcee5b";
-const personalTransit="b563cceea412bde5eafd";
-const market="4614fc4e7623f4a46b7aa5b2d575bbfbdb2b07c8a81c4d5dd78711ec2ced66a5";
-const housingRun="dd2b618d51e61a158a99";
-const corridorTimes="780aaf6b1c7d420aea5c";
-const bridgeDecks="b90d91ccc87929d229c6";
-const departureClock="33f20d3ea8c275eeb4f8";
-const regional={coverage:"region",workplaceRun:region,workTransit:"9cec79f1fec091af7db6",
-  outingsRun:"e7879ecee4c15a19e092",schoolRun:"1813a113cd76855c266f",recreationRun:"88c1b239375877b1c6b3",
-  attendanceRun:"97d973e3124160288795",walks:"fit"};
-
-const vancouver=[
-  {label:"Drive through Downtown",description:"Start on Robson Street during the morning commute.",
-    available:"data/vancouver/region/regional-workplaces/"+region+"/report.json",
-    params:{...regional,street:"drive",camera:"eye",at:"-123.117576,49.279893,135",minute:480}},
-  {label:"Cross Lions Gate Bridge",description:"Drive at street level over Burrard Inlet during the morning commute.",
-    available:"data/vancouver/bridge-decks/"+bridgeDecks+"/decks.json",
-    params:{...regional,decks:bridgeDecks,street:"drive",camera:"eye",at:"-123.139263,49.314678,31",minute:480}},
-  {label:"Take transit to school or shops",description:"Follow a resident on foot, on board and through a connection.",
-    available:"data/vancouver/region/personal-transit/"+personalTransit+"/report.json",
-    params:{...regional,personalTransit,minute:540}},
-  {label:"Open a grocery shop",description:"Choose when to open at Kingsway and follow the people who shop there.",
-    available:"data/vancouver/market/archive/"+market+"/run.json",
-    params:{marketRun:market,shop:"4654",hours:"full",shopPlay:1,minute:600}},
-  {label:"Test higher housing costs near a shop",description:"Compare grocery budgets at the same Kingsway storefront.",
-    available:"data/vancouver/household-market/housing/"+housingRun+"/report.json",
-    params:{marketRun:market,shop:"4654",housingRun,shelterShock:10,minute:600}},
-  {label:"Compare where residents live",description:"Compare two home placements against the census block counts.",
-    available:"data/vancouver/home-placement/59b3bcac4137ca1483c9_dbd7a101357f3c27976f.json",
-    anchor:"home-placement",params:{dayRun:municipalDay,homeBlock:"59154174",minute:300}},
-  {label:"Compare travel by home zone",description:"Compare the same households’ weekday travel with the City’s survey.",
-    available:"data/runs/"+homeZoneDay+".json",
-    anchor:"diary-zone-check",params:{dayRun:homeZoneDay,minute:480}},
-  {label:"Compare advance voting sites",description:"Put the same staff at City Hall or spread them across five locations.",
-    available:"data/vancouver/voting/"+council+"/report.json",
-    params:{dayRun:municipalDay,votingRun:council,votingLayout:"centres",votingSite:200,minute:1020}},
-  {label:"Compare routes across Burrard Inlet",description:"Follow the same morning driver over Lions Gate or Ironworkers.",
-    available:"data/vancouver/region/bridge-choice/"+bridgeChoice+"/report.json",
-    params:{...regional,bridge:"Ironworkers",bridgeDirection:0,bridgeWindow:"am",bridgeMetric:"highway1",
-      bridgeChoice,minute:480}},
-  {label:"Use observed driving times",description:"Replay West Georgia, Granville and Highway 1 with measured weekday speeds.",
-    available:"data/vancouver/region/drive-profile/corridor-times/"+corridorTimes+"/report.json",
-    anchor:"road-traffic",params:{coverage:"region",workplaceRun:region,roadTraffic:corridorTimes,roadSection:"georgia",minute:480}},
-  {label:"Replay the afternoon with spread departures",description:"Compare the same taxi and ride-hail fleets with departures spread within each hour.",
-    available:"data/vancouver/region/hired-dispatch/2dca42367295ade1bdc7/dispatch.json",
-    anchor:"hired-dispatch",params:{coverage:"region",workplaceRun:region,departureClock,hiredRides:"5f3a1a617d965e48d7c6",
-      dispatchRun:"2dca42367295ade1bdc7",minute:1020}},
-  {label:"Change the Lions Gate centre lane",description:"Compare morning crossings and queues under two lane allocations.",
-    available:"data/vancouver/region/bridge-demand/879ba485218802dd3acc/arrivals.json",
-    params:{...regional,bridge:"LionsGateBridge",bridgeDirection:0,bridgeWindow:"am",bridgeMetric:"highway1",
-      bridgeQueue:1,lanePolicy:"north",easternOutingRun:"1890ea2cbe8d554d4003",minute:480}}
-];
-
 const link=(file,params)=>file+(Object.keys(params).length?"?"+new URLSearchParams(params):"");
 const staticData=document.querySelector('meta[name="city-data"]')?.content;
 
@@ -73,18 +16,11 @@ function runScenes(runs,city){
   }
   const region=preferredRun(runs,city,"region");
   const run=region??whole;
-  return [{label:"Vancouver weekday",description:"Explore Vancouver, UBC and the North Shore.",
-    href:link("cityday.html",weekdayQuery(city,run?.coverage??"region",run?.release))}];
+  return run ? [{label:"Vancouver regional weekday",description:"Explore Vancouver, UBC and the North Shore.",
+    href:link("explorer.html",{city,release:run.release})}] : [];
 }
 
-async function localAsset(url){
-  try{
-    const response=await fetch(url,{method:"HEAD"});
-    return response.ok&&response.headers.get("content-type")?.includes("json");
-  }catch{return false;}
-}
-
-let catalogue,available;
+let catalogue;
 function loadRuns(){
   const url=staticData?new URL("scenarios.json",new URL(staticData,document.baseURI)):"data/runs/current.json";
   catalogue??=fetch(url).then(response=>response.ok?response.json():null).then(data=>{
@@ -116,12 +52,6 @@ if(cityPicker&&!staticData){
     status.hidden=false;
     status.textContent="Published weekday unavailable.";
   };
-}
-
-function loadVancouver(){
-  available??=Promise.all(vancouver.map(async scene=>await localAsset(scene.available)?
-    {...scene,href:link("cityday.html",scene.params)+(scene.anchor?"#"+scene.anchor:"")}:null)).then(scenes=>scenes.filter(Boolean));
-  return available;
 }
 
 function menu(){
@@ -161,10 +91,10 @@ function menu(){
     libraryQuery.set("city",city);
     const camera=document.getElementById("overview-map")?.dataset.camera;
     if(camera)libraryQuery.set("camera",camera);
-    library.href="runs.html?"+libraryQuery;
+    if(library.isConnected)library.href="runs.html?"+libraryQuery;
     status.hidden=false;status.textContent="Loading published scenarios…";
     list.replaceChildren();
-    const [runs,extras]=await Promise.all([loadRuns(),city==="vancouver"&&!document.getElementById("overview-map")?loadVancouver():Promise.resolve([])]);
+    const runs=await loadRuns();
     if(id!==revision)return;
     const overlay=document.getElementById("metric");
     if(overlay && city===document.getElementById("run")?.value){
@@ -187,7 +117,7 @@ function menu(){
       const run=preferredRun(runs,city,"region")??preferredRun(runs,city,"city");
       rows(run?[{label:run.label,description:"Open this city in the shared explorer.",
         href:link("explorer.html",{city,release:run.release})}]:[]);
-    }else rows([...runScenes(runs,city),...extras]);
+    }else rows(runScenes(runs,city));
     status.hidden=true;
   }
   picker.onchange=show;

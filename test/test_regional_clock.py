@@ -2,6 +2,9 @@
 import json
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from scripts.vancouver_downtown import resident_flows
 
 
 DATA = Path("public/data")
@@ -9,6 +12,30 @@ DATA = Path("public/data")
 
 def read(file):
     return json.loads(file.read_bytes())
+
+
+class RegionalFlowClockTest(unittest.TestCase):
+    def test_shared_phase_can_move_a_trip_to_the_previous_hour(self):
+        with TemporaryDirectory() as directory:
+            day = Path(directory) / "day"
+            atlas = Path(directory) / "atlas"
+            day.mkdir()
+            atlas.mkdir()
+            (day / "day.json").write_text(json.dumps({
+                "areas": ["Downtown", "Other"], "das": ["a", "b"],
+                "templates": [{"parts": [[420, 60, "walk", 0, 1]]}],
+            }))
+            (atlas / "atlas.json").write_text(json.dumps({
+                "areas": {"Downtown": {"das": ["a", "b"]}},
+            }))
+            for da in ("a", "b"):
+                (day / f"{da}.json").write_text(json.dumps({"plans": [[0, 1]] * 2}))
+                (atlas / f"{da}.json").write_text(json.dumps({"people": [[0] * 8] * 2}))
+            places = [[0, 0, 0], [100, 0, 1]]
+            rounded = resident_flows(day, atlas, places)["counts"]
+            shared = resident_flows(day, atlas, places, shared_clock=True)["counts"]
+            self.assertEqual([sum(rounded[h][0][1]) for h in (6, 7)], [0, 4])
+            self.assertEqual([sum(shared[h][0][1]) for h in (6, 7)], [1, 3])
 
 
 @unittest.skipUnless((DATA / "runs/current.json").exists(), "requires published regional data")

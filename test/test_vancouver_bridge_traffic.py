@@ -1,5 +1,4 @@
 import csv
-import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -8,55 +7,10 @@ from unittest.mock import patch
 import numpy as np
 from scipy.sparse import csr_matrix
 
-from scripts.vancouver_bridge_choice import choices, road_trees, route
-from scripts.vancouver_bridge_layers import buses, crossings
 from scripts.vancouver_bridge_traffic import access_graph, hour_fields, ironworkers_observations, prune_bridge_candidates, score, score_window
 
 
 class BridgeTrafficTest(unittest.TestCase):
-    def test_alternative_bridge_keeps_direction_and_travel_budget(self):
-        # The western deck is faster. The eastern deck has a longer approach
-        # and fits the second diary only. Access is included in both routes.
-        graph = csr_matrix(([1, 2, 2, 3, 2, 3, 2, 2],
-                            ([0, 1, 2, 0, 3, 4, 2, 4], [1, 2, 5, 3, 4, 5, 1, 3])), shape=(6, 6))
-        arcs = {(1, 2): (0, 0, .5), (2, 1): (0, 1, .5),
-                (3, 4): (1, 0, .5), (4, 3): (1, 1, .5)}
-        trees = list(road_trees(graph, arcs))
-        times, screening, via = choices(np.array([0, 0]), np.array([5, 5]), np.array([6, 10]),
-                                        np.array([.5, .5]), np.array([.5, .5]), trees)
-        np.testing.assert_array_equal(times, [[6, np.inf], [6, 9]])
-        np.testing.assert_array_equal(screening[1], [2.5, 4.5])
-        points = [[i, i * 10] for i in range(6)]
-        places = [[-1, 0], [6, 50]]
-        example = route(points, places, [1, 0, 1, 480, 10, 0, 0], 0, 5, trees[via[1, 1]], .5, .5)
-        self.assertEqual(example["minute"], 485)
-        self.assertEqual(example["path"], [places[0], points[0], points[3], points[4], points[5], places[1]])
-        self.assertEqual(example["offsets"], [0, .5, 3.5, 5.5, 8.5, 9])
-
-    def test_scheduled_buses_cross_between_stop_times_and_exclude_ferries(self):
-        with tempfile.TemporaryDirectory() as folder:
-            directory = Path(folder)
-            manifest = dict(date="2026-09-15", feedDigest="feed", routes=[
-                dict(id="1", name="28", type=3), dict(id="2", name="SeaBus", type=4),
-            ])
-            (directory/"transit.json").write_text(json.dumps(manifest))
-            route = dict(patterns=[dict(line=[[0, 0], [0, 100]], dist=[0, 100], mapped=True)],
-                         rides=[[0, 7*3600+56*60, [0, 120, 360, 360], "South"]])
-            (directory/"1.json").write_text(json.dumps(route))
-            report = buses(directory, [(0, 50), (200, 50)])
-        self.assertEqual(report["routes"], ["28"])
-        self.assertEqual(report["sites"][0]["examples"][0][8], ["1", "28", 480.0])
-        self.assertEqual(sum(map(sum, report["sites"][0]["counts"])), 1)
-        self.assertEqual(sum(map(sum, report["sites"][1]["counts"])), 0)
-
-    def test_crossing_uses_path_clock_and_requires_intersection_with_the_deck(self):
-        hits = crossings([[0, 100], [0, 0], [200, 0], [200, 100]], [0, 4, 12, 20], [(0, 50), (200, 50)])
-        self.assertEqual(list(hits), [(0, 1, 2.0), (1, 0, 16.0)])
-
-    def test_eastern_bus_screen_uses_eastbound_and_westbound_convention(self):
-        hits = crossings([[0, 0], [200, 0], [0, 0]], [0, 4, 8], [], [(100, 0), (100, 60)])
-        self.assertEqual(list(hits), [(0, 0, 2), (0, 1, 6)])
-
     def test_resident_passages_use_the_drive_clock_and_keep_purposes_separate(self):
         points = [[-100, 0], [100, 0]]
         graph = dict(nodes=points, names=["Road"], ways=[[6, 0, [0, 1]]])

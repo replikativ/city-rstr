@@ -5,7 +5,6 @@ import numpy as np
 from scripts.vancouver_outbound_transit import Bookings
 from scripts.vancouver_transit_load import BusSpaces
 from scripts.vancouver_transit_reach import INF, Reach
-from scripts.vancouver_transit_trace import JourneyTrace
 from scripts.vancouver_transit_transfers import Footpath
 
 
@@ -48,19 +47,6 @@ def test_complete_shift_reservations_are_atomic():
     assert len(booking.circuit("DA",3,legs,5)) == 2
     assert not booking.spaces.fits(outward)
     assert not booking.spaces.fits(back)
-
-
-def test_trace_recovers_three_vehicles_and_checks_each_segment():
-    access = {0: {0: 30}, 1: {5: 45}}
-    paths = {"X": {"B": Footpath(30, 120, [])}, "Z": {"Y": Footpath(10, 100, [])}}
-    trace = JourneyTrace(service(), access, paths, 60)
-    assert trace.journey(8, 25, 0, 1) == (
-        8, 1485, ["1", 0, 0, 1, 30, 45, ["2", 0, 0, 1, 30, 120, [], ["3", 0, 0, 1, 10, 100, []]]])
-    assert trace.journey(9, 25, 0, 1) is None
-    assert trace.journey(8, 24, 0, 1) is None
-    assert not trace.fits(8, 24, 0, 1)
-    assert trace.fits(8, 25, 0, 1)
-    assert trace.journey(8, 25, 0, 1, lambda route, *_: route != "2") is None
 
 
 def test_through_rider_can_pass_a_stop_with_no_boarding_or_alighting():

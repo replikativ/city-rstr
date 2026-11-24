@@ -2,6 +2,7 @@
 from collections import defaultdict
 import csv
 import json
+import math
 
 import numpy as np
 
@@ -71,7 +72,12 @@ def station_counts(table, transit, manifest, by_da, *, by_origin=False):
     return result
 
 
-def resident_flows(day_dir, atlas_dir, places, *, workplace_ends=False):
+def shared_minute_offset(agent):
+    """Observe the shared regional diary phase at a whole minute."""
+    return math.ceil(5 * (((agent + 1) * 7919 % 10007) + 0.5) / 10007 - 2.5)
+
+
+def resident_flows(day_dir, atlas_dir, places, *, workplace_ends=False, shared_clock=False):
     day = json.loads((day_dir / "day.json").read_bytes())
     atlas = json.loads((atlas_dir / "atlas.json").read_bytes())
     areas = day["areas"]
@@ -81,13 +87,16 @@ def resident_flows(day_dir, atlas_dir, places, *, workplace_ends=False):
     counts = np.zeros((24, len(areas), 2, len(MODES)), dtype=int)
     work = np.zeros((24, 2), dtype=int) if workplace_ends else None
     morning = defaultdict(lambda: np.zeros((2, len(areas)), dtype=int))
+    ordinal = 0
     for da in day["das"]:
         roster = json.loads((atlas_dir / (da + ".json")).read_bytes())["people"]
         plans = json.loads((day_dir / (da + ".json")).read_bytes())["plans"]
         groups = defaultdict(list)
-        for person, plan in zip(roster, plans, strict=True):
-            groups[person[7]].append(plan)
-        for template, rows in groups.items():
+        for index, (person, plan) in enumerate(zip(roster, plans, strict=True), ordinal):
+            offset = shared_minute_offset(index) if shared_clock else 0
+            groups[person[7], offset].append(plan)
+        ordinal += len(roster)
+        for (template, offset), rows in groups.items():
             anchors = np.asarray(rows)
             for start, duration, mode, i, j in day["templates"][template]["parts"]:
                 if mode == "stop" or min(i, j) < 0:
@@ -98,17 +107,19 @@ def resident_flows(day_dir, atlas_dir, places, *, workplace_ends=False):
                 inbound = np.count_nonzero(valid & ~origin & dest)
                 outbound = np.count_nonzero(valid & origin & ~dest)
                 m = MODE_INDEX.get(mode, len(MODES) - 1)
-                counts[((start + duration) // 60) % 24, home_area[da], 0, m] += inbound
-                counts[(start // 60) % 24, home_area[da], 1, m] += outbound
+                arrive_hour = (start + duration + offset) // 60 % 24
+                leave_hour = (start + offset) // 60 % 24
+                counts[arrive_hour, home_area[da], 0, m] += inbound
+                counts[leave_hour, home_area[da], 1, m] += outbound
                 if workplace_ends:
                     slots = day["templates"][template]["slots"]
-                    if outbound and 7 <= (start // 60) % 24 < 9:
+                    if outbound and 7 <= leave_hour < 9:
                         destinations = zone[b[valid & origin & ~dest]]
                         morning[slots[j]][int(home_area[da] == core)] += np.bincount(destinations, minlength=len(areas))
                     if slots[j] == "job":
-                        work[((start + duration) // 60) % 24, 0] += inbound
+                        work[arrive_hour, 0] += inbound
                     if slots[i] == "job":
-                        work[(start // 60) % 24, 1] += outbound
+                        work[leave_hour, 1] += outbound
     result = {"areas": areas, "modes": MODES, "counts": counts.tolist()}
     if workplace_ends:
         result["morningDepartures"] = {purpose: counts.tolist() for purpose, counts in sorted(morning.items())}

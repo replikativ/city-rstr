@@ -4,7 +4,7 @@ Nginx serves the static bundle through `/var/www/city-releases/current/` at
 `https://simm.is/city/`. The main website has its own release directory.
 
 1. From the reviewed checkout run `npm ci` and `npm run release`. Obtain the
-   pinned data directory from the release artifact or the publishing workspace.
+   runtime data directory from a retained shared release or the publishing workspace.
    `python3 -m scripts.preview_bundle --pinned-data --data /path/to/bundle/data` assembles the
    browser and city data and checks each data file against the reviewed inventory in
    `deploy/weekday-data.sha256.gz`. A mirror containing additional runs also works. The release identifier
@@ -38,3 +38,10 @@ To update the inventory after an intentional data change, build with
 awk 'substr($0, 67, 5) == "data/"' dist/city-previews/current/SHA256SUMS |
   gzip -n > deploy/weekday-data.sha256.gz
 ```
+
+The runtime inventory contains the run manifests, prepared schedules, scenes,
+street traces, scenario results, Stuttgart static export and the data linked
+from the scientific pages. Recomputing these products uses the producer datasets
+described in DATA.md and the source register. The original Vancouver workbench
+and its inputs can be inspected using Git revision `ebaecc1` and its retained
+`c05e52956d9ee807c7c61141328e9f7f134526427a4e7399831ceea930865b7d` bundle.

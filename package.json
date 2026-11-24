@@ -21,7 +21,8 @@
     "overview:build": "python3 -m scripts.build_overview",
     "preview:bundle": "python3 -m scripts.preview_bundle",
     "preview": "python3 -m scripts.preview_local",
-    "watch": "clojure -M:ui -m shadow.cljs.devtools.cli watch app replay vancouver experiments",
-    "release": "clojure -M:ui -m shadow.cljs.devtools.cli release app replay vancouver experiments"
+    "watch": "clojure -M:ui -m shadow.cljs.devtools.cli watch app replay experiments",
+    "release": "clojure -M:ui -m shadow.cljs.devtools.cli release app replay experiments",
+    "offline:vancouver": "clojure -M:ui -m shadow.cljs.devtools.cli release offline-vancouver"
   }
 }

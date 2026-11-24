@@ -1,9 +1,9 @@
 // Score the full roster with the same workplace lookup and A* router used to follow a resident.
 import {readFileSync,writeFileSync} from "node:fs";
 import {join} from "node:path";
-import {Network, distance, roadMode} from "../public/lab/vancouver-network.js";
-import {onwardRide,rideTiming} from "../public/lab/transit-passenger.js";
-import {residentTrips} from "../public/js/vancouver/workplaces.js";
+import {Network, distance, roadMode} from "./vancouver-network.js";
+import {onwardRide,rideTiming} from "./transit-passenger.js";
+import {residentTrips} from "../target/offline-vancouver/workplaces.js";
 import {possibleHours} from "./vancouver_walk_reach.mjs";
 
 const root=process.argv[2], read=path=>JSON.parse(readFileSync(join(root,path)));

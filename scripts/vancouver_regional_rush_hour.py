@@ -17,7 +17,7 @@ import numpy as np
 from scripts import vancouver_bridge_traffic as road
 from scripts.vancouver_city_transit import DirectService, resident_trips
 from scripts.vancouver_campus import access_routes
-from scripts.vancouver_downtown import MODES, resident_flows, station_counts
+from scripts.vancouver_downtown import MODES, resident_flows, shared_minute_offset, station_counts
 from scripts.vancouver_regional_inbound import commute_legs
 from scripts.vancouver_regional_workplaces import TABLE, census_matrix
 from scripts.vancouver_region import read
@@ -113,23 +113,35 @@ def inlet(region, run, probes):
 
 def demand(region, run):
     day = region / "cityday" / run["day"]
+    atlas = region / "atlas" / run["atlas"]
     places = read(day / "places.json")
-    result = resident_flows(day, region / "atlas" / run["atlas"], places, workplace_ends=True)
+    result = resident_flows(day, atlas, places, workplace_ends=True)
     resident = np.array(result["counts"]).sum(axis=1)
     incoming = np.zeros_like(resident)
+    shared_incoming = np.zeros_like(resident)
     workers = region / "incoming-workers" / run["regionalWorkers"]
     manifest = read(workers / "commuters.json")
     if manifest["places"] != digest(day / "places.json") or manifest["modes"] != MODES:
         raise ValueError("Worker destinations or mode ordering disagree")
     core = result["areas"].index("Downtown")
-    for group in manifest["groups"]:
+    ordinal = run["population"]
+    for group in sorted(manifest["groups"]):
         for _, job, _, _, mode, leave, duration, span, attend, _ in read(workers / (group + ".json"))["people"]:
-            if attend and places[job][2] == core:
-                arrival = leave + duration
+            if attend != 1:
+                continue
+            shift = shared_minute_offset(ordinal)
+            ordinal += 1
+            if places[job][2] == core:
+                arrival, departure = leave + duration, leave + duration + span
                 incoming[arrival // 60 % 24, 0, mode] += 1
-                incoming[(arrival + span) // 60 % 24, 1, mode] += 1
-    # Check the audited clock, endpoints and cohort membership against the
-    # shared engine's OD product, which also powers the explorer connections.
+                incoming[departure // 60 % 24, 1, mode] += 1
+                shared_incoming[(arrival + shift) // 60 % 24, 0, mode] += 1
+                shared_incoming[(departure + shift) // 60 % 24, 1, mode] += 1
+    if ordinal != run["population"] + run["inbound"]:
+        raise ValueError("External worker cohort differs from the published run")
+    # Cross-check the modeled peak-hour totals on the shared diary clock while
+    # retaining the rounded diary clock for the published evidence tables.
+    shared_resident = np.array(resident_flows(day, atlas, places, shared_clock=True)["counts"]).sum(axis=1)
     overview = region.parents[1] / "overview"
     scene_id = read(overview / (run["release"] + ".json"))["scene"]
     scene = read(overview / (scene_id + ".json"))
@@ -146,7 +158,7 @@ def demand(region, run):
             if origin == downtown:
                 expected[(leave + offset) % 24, 1] += count
     peak = [7, 8, 16, 17]
-    np.testing.assert_array_equal(expected[peak], (resident + incoming).sum(axis=2)[peak])
+    np.testing.assert_array_equal(expected[peak], (shared_resident + shared_incoming).sum(axis=2)[peak])
     morning = result["morningDepartures"]
     assert sum(np.sum(v) for v in morning.values()) == resident[7:9, 1].sum()
     # The earlier workplace experiment retained its unmodified parent as "before".
@@ -158,7 +170,7 @@ def demand(region, run):
     variant = region / "cityday" / fitted["day"]
     if digest(variant / "places.json") != manifest["places"]:
         raise ValueError("Cannot hold external workers fixed across these workplace assignments")
-    alternative = resident_flows(variant, region / "atlas" / run["atlas"], places)
+    alternative = resident_flows(variant, atlas, places)
     if alternative["areas"] != result["areas"]:
         raise ValueError("Workplace sensitivity has different geography")
     alternative_totals = np.array(alternative["counts"]).sum(axis=1) + incoming

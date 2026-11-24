@@ -1,80 +1,11 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Mount Pleasant weekday · City laboratory</title>
-  <link rel="stylesheet" href="lab/explorer.css"><link rel="stylesheet" href="lab/vancouver.css">
-</head>
-<body>
-  <header class="masthead"><a class="wordmark" href="https://simm.is">simm<span>is</span></a><span>City laboratory</span>
-    <a href="lab.html">Stuttgart</a><a href="cityday.html">Weekday map</a><a href="population.html">Population atlas</a><button class="evidence-link" id="evidence">Inspect evidence</button></header>
-  <main class="workspace">
-    <aside id="city-tools">
-      <p class="city-context">Vancouver</p><h1>Mount Pleasant</h1>
-      <div class="sim-mode" aria-label="Simulation view"><button id="weekday-mode" aria-pressed="true">Weekday</button><button id="shop-mode" aria-pressed="false">Shop opening</button></div>
-      <div id="weekday-tools"><p>Follow a simulated weekday on foot.</p>
-      <label for="origin">Home neighbourhood</label>
-      <select id="origin"><option value="all">All walkers</option><option value="local">Mount Pleasant residents</option><option value="inbound">Other Vancouver residents</option></select>
-      <div class="walk-key"><span>Local</span><span>From elsewhere</span></div>
-      <section><h2>Follow a walker</h2>
-        <p class="hint">Pick a moving dot or jump to a walk.</p>
-        <select id="walker" aria-label="Choose a synthetic walker"><option value="">Choose a walker…</option></select>
-        <div id="itinerary"></div>
-      </section>
-      <section><h2>Intersection count</h2>
-        <select id="inspect-site" aria-label="Inspect a surveyed intersection"><option value="">Choose an intersection…</option></select>
-        <div id="comparison" hidden></div>
-      </section>
-      </div>
-      <section id="shop-tools" hidden>
-        <label for="shop-site">Grocery scenario</label><select id="shop-site"><option value="">Existing stores only</option></select>
-        <label for="shop-profile">Choice assumptions</label><select id="shop-profile"></select>
-        <div id="shop-result" aria-live="polite"></div>
-        <div id="shop-inspector" hidden><label for="shop-trip-type">Trips to inspect</label>
-          <select id="shop-trip-type"><option value="all">All changed visits</option><option value="new">Newly feasible visits</option><option value="diverted">Diverted visits</option></select>
-          <label for="shop-example">Changed shopping trip</label><select id="shop-example"></select>
-          <p id="shop-story"></p><div class="trip-key"><span>Opening</span><span>Original</span></div></div>
-        <details id="shop-breakdown" hidden><summary>Customers and displaced visits</summary><div id="shop-origins"></div></details>
-      </section>
-    </aside>
-    <section class="map-stage" aria-label="Weekday walking map">
-      <svg id="walk-map" aria-label="Mount Pleasant streets, simulated walkers and pedestrian survey sites" role="group">
-        <g id="geography"><path id="neighbourhood"></path><g id="streets"></g><g id="street-labels"></g></g>
-        <path id="selected-path"></path><g id="walkers"></g>
-        <g id="counters"><g class="counter" role="button" tabindex="0">
-          <circle r="44" fill="transparent"></circle><path d="M0,-19L19,0 0,19 -19,0Z"></path><path d="M-6,0H6 M0,-6V6"></path></g></g>
-        <g id="shop-layer" style="display:none"><path id="before-route"/><path id="after-route"/><g id="shop-pins"></g>
-          <circle id="shop-dot" r="14" fill="#ffe3a1" stroke="#162128" stroke-width="4"/></g>
-      </svg>
-      <div class="map-controls"><button id="zoom-in" aria-label="Zoom in">+</button><button id="zoom-out" aria-label="Zoom out">−</button><button id="recenter">Recenter</button></div>
-      <div id="status" role="status">Loading weekday…</div>
-      <div class="map-footer">
-        <div id="city-time"><div class="time-row"><button id="play" disabled>Play</button><output id="clock" for="minute">08:00</output>
-          <input id="minute" aria-label="Weekday time" type="range" min="240" max="1679" value="480">
-          <select id="speed" aria-label="Playback speed"><option value="1">1 min/s</option><option value="5" selected>5 min/s</option><option value="20">20 min/s</option></select></div></div>
-        <div class="map-credits"><a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a> · City of Vancouver</div>
-      </div>
-    </section>
-  </main>
-  <dialog id="methods"><header><h2>Weekday evidence</h2><form method="dialog"><button>Close</button></form></header>
-    <section id="shop-evidence" hidden><h3>Grocery-opening evidence</h3>
-      <p id="pilot-verdict"></p><div id="pilot-sensitivity"></div>
-      <details><summary>Where shoppers and competitors come from</summary><p id="pilot-method"></p>
-        <p>A qualifying diary records an in-person goods purchase at a store, with a walk on either side and a known next activity. The two scenarios keep the starting stop, next commitment and shopping duration fixed. People can defer a visit if every store is closed or too far away. The model covers individual walking occasions. Shared household purchases, other modes and spending need additional observations.</p>
-        <p>The candidate addresses were recorded as vacant in 2025. Opening hours, the grocery share and preference for the new shop are scenario assumptions.</p></details>
-      <details><summary>Workplace and pedestrian checks</summary><div id="movement-check"></div></details>
-    </section>
-    <section id="lunch-evidence" hidden><h3>Ontario Street at lunch</h3>
-      <p id="lunch-result"></p>
-      <details><summary>Passings by simulation seed</summary>
-        <table><thead><tr><th>Seed</th><th>5th Ave</th><th>10th Ave</th><th>5th minus 10th</th></tr></thead><tbody id="lunch-rows"></tbody></table>
-        <p>Each seed redraws diaries and destinations under the same assumptions. Each row compares both sites on the same simulated day.</p>
-      </details></section>
-    <h3>Who the dots represent</h3><p>Each dot is one synthetic city resident aged 15 or older. Rounded 2021 Census age counts for each dissemination area set the sample weights. Each person draws a whole weekday from the urban BC training diaries in the 2022 Time Use Survey. The replay shows people with at least one routed walk touching Mount Pleasant.</p>
-    <h3>Where people walk</h3><p>Homes start at census-area centroids. Recorded activities and walking times guide destination placement among August 2026 Overture places and nearby street nodes. Routes follow the shortest connected walkable OpenStreetMap path. Addresses, destinations and routes are inferred. The replay includes standalone walking legs between known stops. It omits transit access legs, walks with unresolved endpoints, children under 15 and residents outside city limits.</p>
-    <h3>How the count works</h3><p>Each comparison uses the four pedestrian approaches and the observation periods declared in the selected City workbook. Alberta and 12th has separate morning and afternoon counts. The model counts one passing per routed walk whose interior passes within 22 metres of the site, timed by distance along the path. Both endpoints must lie outside the buffer. Sample weights expand the model total. The home-neighbourhood filter changes the map only. The comparison uses the full simulated sample.</p>
-    <p id="sample-note"></p><h3>Survey workbooks</h3><ul id="workbooks"></ul>
-  </dialog>
-  <script type="module" src="lab/vancouver.js"></script>
-</body></html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mount Pleasant replay · simmis</title></head>
+<body><p><a id="laboratory" href="explorer.html?city=vancouver&amp;retired=vancouver">Open the Vancouver regional explorer</a></p>
+<script type="module">
+import {entryDestination} from "./lab/entry.js";
+const destination = entryDestination(location);
+document.getElementById("laboratory").href = destination.href;
+location.replace(destination.href);
+</script></body></html>

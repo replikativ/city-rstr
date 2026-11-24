@@ -1,9 +1,9 @@
 // Score the same directed routes, workplace choices and time budgets as the street view.
 import {readFileSync,writeFileSync} from "node:fs";
 import {join} from "node:path";
-import {activeStreetLeg,activeStreetMode,budgetRoute,streetLegs} from "../public/lab/street-pedestrians.js";
-import {Network,BIKE,distance,xy,lngLat} from "../public/lab/vancouver-network.js";
-import {residentTrips} from "../public/js/vancouver/workplaces.js";
+import {activeStreetLeg,activeStreetMode,budgetRoute,streetLegs} from "./street-pedestrians.js";
+import {Network,BIKE,distance,xy,lngLat} from "./vancouver-network.js";
+import {residentTrips} from "../target/offline-vancouver/workplaces.js";
 
 const root=process.argv[2],read=p=>JSON.parse(readFileSync(join(root,p)));
 const input=JSON.parse(readFileSync(0)),{versions:v,sites}=input;
