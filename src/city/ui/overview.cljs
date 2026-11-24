@@ -9,8 +9,8 @@
 
 (defn- ^js el [id] (js/document.getElementById id))
 (defn- put! [id value] (set! (.-textContent (el id)) value))
-(defn- json [url]
-  (-> (js/fetch url) (.then (fn [^js r] (if (.-ok r) (.json r) (throw (js/Error. (str "Unavailable: " url))))))))
+(defn- json [url & [options]]
+  (-> (js/fetch url options) (.then (fn [^js r] (if (.-ok r) (.json r) (throw (js/Error. (str "Unavailable: " url))))))))
 (defn- option! [id title value] (.add (el id) (js/Option. title value)))
 (defn- quantity [n] (.toLocaleString n js/undefined #js {:maximumFractionDigits 0}))
 (defn- time-label [minute]
@@ -327,21 +327,52 @@
                                      (str (aget leg "mode") " · " (quantity (segment-kmh leg t)) " km/h · " (aget leg "purpose")) "outside displayed leg"))))
                 (doseq [id ["clear-person" "follow-person"]] (set! (.-hidden (el id)) (or (nil? person) (some? (scenario)))))
                 (.setAttribute (el "follow-person") "aria-pressed" (str (boolean (:follow @state))))))
-            (trace-file [h]
-              (let [key (aget (aget (:trace-index @state) "hours") h)]
-                (or (get-in @state [:chunks key])
-                    (let [promise (json (str "data/overview/" key ".json"))]
-                      (swap! state update :chunks #(assoc (select-keys % [(:last-chunk @state)]) key promise))
-                      (swap! state assoc :last-chunk key)
-                      promise))))
+            (trim-chunks! [keep]
+              (doseq [[key {:keys [controller]}] (:chunks @state) :when (not (keep key))]
+                (.abort controller))
+              (swap! state update :chunks select-keys keep))
+            (trace-file [key]
+              (or (get-in @state [:chunks key :promise])
+                  (let [controller (js/AbortController.)
+                        current? #(identical? controller (get-in @state [:chunks key :controller]))
+                        promise (-> (json (str "data/overview/" key ".json") #js {:signal (.-signal controller)})
+                                    (.then (fn [legs]
+                                             (when (current?) (swap! state assoc-in [:chunks key :legs] legs))
+                                             legs))
+                                    (.catch (fn [error]
+                                              (when (current?) (swap! state update :chunks dissoc key))
+                                              (throw error))))]
+                    (swap! state assoc-in [:chunks key] {:controller controller :promise promise})
+                    promise)))
             (hour! [h]
               (let [{:keys [trace-index epoch]} @state token [epoch h]]
                 (when (and trace-index (not= token (:hour @state)))
-                  (swap! state assoc :hour token)
-                  (-> (trace-file h)
-                      (.then (fn [legs] (when (= token (:hour @state)) (swap! state assoc :legs legs) (draw-people!)
-                                                 (-> (trace-file (mod (inc h) 24)) (.catch (fn [_] nil))))))
-                      (.catch (fn [e] (when (= token (:hour @state)) (do (swap! state assoc :hour nil :chunks {}) (put! "status" (.-message e))))))))))
+                  (let [hours (aget trace-index "hours")
+                        key (aget hours h)
+                        ahead (mapv #(aget hours (mod (+ h %) 24)) [1 2])
+                        activate! (fn [legs]
+                                    (when (= token (:hour @state))
+                                      (swap! state assoc :legs legs :ready-hour h :tick (js/performance.now))
+                                      (put! "trace-status" "")
+                                      (draw-people!)
+                                      (doseq [next-key ahead]
+                                        (-> (trace-file next-key) (.catch (fn [_] nil))))))]
+                    (trim-chunks! (set (cons key ahead)))
+                    (swap! state assoc :hour token)
+                    (if-let [legs (get-in @state [:chunks key :legs])]
+                      (activate! legs)
+                      (do
+                        (swap! state assoc :ready-hour nil)
+                        (put! "trace-status" (str "Buffering " (time-label (* h 60)) " paths…"))
+                        (-> (trace-file key)
+                            (.then activate!)
+                            (.catch (fn [_]
+                                      (when (= token (:hour @state))
+                                        (swap! state assoc :hour nil)
+                                        (when-not (scenario)
+                                          (swap! state assoc :playing false)
+                                          (put! "play" "Play")
+                                          (put! "trace-status" "Street paths unavailable. Press Play to retry."))))))))))))
             (connections! [s hour area show?]
               (let [key [(:epoch @state) show? hour area]]
                 (when (not= key (:connection-key @state))
@@ -427,11 +458,15 @@
                       (put! "flows" (str "Trips across area boundaries this hour · " (.toLocaleString in) " in / "
                                          (.toLocaleString out) " out"))))
                   (set! (.-value (el "minute")) minute)
-                  (when-not c (hour! (quot minute 60))) (draw-people!) (link!))))
+                  (if c (set! (.-hidden (el "trace-status")) true)
+                      (do (set! (.-hidden (el "trace-status")) false) (hour! (quot minute 60))))
+                  (when (or c (= (:ready-hour @state) (quot minute 60))) (draw-people!)) (link!))))
             (load! [entry]
               (let [id (:release entry) epoch (random-uuid)]
                 (set! (.-checked (el "show-connections")) false)
-                (swap! state assoc :epoch epoch :visible-ids nil :hourly-frame nil :venue nil :venue-index {} :venue-rows nil :chunks {} :frame nil :population-frame nil :loading-positions false :focus false :origins nil :scene nil :fraction 0 :cases {} :geo nil :trace-index nil :hour nil :legs #js [] :person nil :follow false :run nil)
+                (trim-chunks! #{})
+                (put! "trace-status" "")
+                (swap! state assoc :ready-hour nil :epoch epoch :visible-ids nil :hourly-frame nil :venue nil :venue-index {} :venue-rows nil :chunks {} :frame nil :population-frame nil :loading-positions false :focus false :origins nil :scene nil :fraction 0 :cases {} :geo nil :trace-index nil :hour nil :legs #js [] :person nil :follow false :run nil)
                 (.setProps overlay #js {:layers #js []})
                 (.setLayoutProperty m "shops" "visibility" "visible")
                 (.setLayoutProperty m "revenue-rings" "visibility" "none")
@@ -639,16 +674,26 @@
               (re-matches #"[0-9]{1,8}" limit) (set! (.-value (el "agent-limit")) limit)))
       (set! (.-onclick (el "follow-person")) #(do (swap! state update :follow not) (render!)))
       (set! (.-onclick (el "clear-person")) #(do (swap! state assoc :person nil :follow false) (render!)))
-      (set! (.-oninput (el "minute")) #(do (swap! state assoc :minute (.-valueAsNumber (el "minute")) :fraction 0 :tick (js/performance.now)) (render!)))
-      (set! (.-onclick (el "play")) #(do (swap! state (fn [s] (assoc s :playing (not (:playing s)) :tick (js/performance.now)))) (put! "play" (if (:playing @state) "Pause" "Play"))))
+      (set! (.-oninput (el "minute")) #(do (when (not= (:ready-hour @state) (quot (.-valueAsNumber (el "minute")) 60))
+                                              (swap! state assoc :legs #js []) (draw-people!))
+                                            (swap! state assoc :minute (.-valueAsNumber (el "minute")) :fraction 0 :tick (js/performance.now)) (render!)))
+      (set! (.-onclick (el "play")) #(do (swap! state (fn [s] (assoc s :playing (not (:playing s)) :tick (js/performance.now)))) (put! "play" (if (:playing @state) "Pause" "Play"))
+                                           (when-not (scenario) (hour! (quot (:minute @state) 60)))))
       (js/setInterval
        (fn []
          (let [{:keys [playing scene minute fraction tick]} @state
                now (js/performance.now) smooth? (= "smooth" (.-value (el "motion")))]
-           (when (and playing scene (or smooth? (>= (- now tick) 1000)))
+           (when (and playing scene (or (scenario) (= (:ready-hour @state) (quot minute 60)))
+                      (or smooth? (>= (- now tick) 1000)))
              (let [elapsed (/ (min (- now tick) 1000) 1000)
                    delta (/ (* elapsed (js/Number (.-value (el "speed")))) 60)
-                   next-time (+ minute (or fraction 0) delta)
+                   candidate (+ minute (or fraction 0) delta)
+                   h (quot minute 60)
+                   next-h (mod (inc h) 24)
+                   boundary (* (inc h) 60)
+                   next-time (if (and (not (scenario)) (>= candidate boundary)
+                                      (nil? (get-in @state [:chunks (aget (aget (:trace-index @state) "hours") next-h) :legs])))
+                               boundary candidate)
                    new-minute (mod (js/Math.floor next-time) 1440)]
                (swap! state assoc :minute new-minute :tick now
                       :fraction (- next-time (js/Math.floor next-time)))
