@@ -8,6 +8,7 @@
             [city.ui.remote :as remote]
             [city.ui.city-layers :as layers]
             [city.ui.city-panels :as panels]
+            [city.ui.replay-shell :as shell]
             [city.ui.timeline :as time]))
 
 (def definitions
@@ -36,23 +37,21 @@
 (def views
   "What the map shows for each question; the checkboxes under customize stay
    available for anything else."
-  [[:scenario "Scenario effect" #{:areas :scenario :scenario-visits}]
+  [[:scenario "Scenario effects" #{:areas :scenario :scenario-visits}]
    [:economy "Baseline economy" #{:areas :revenue :visits}]
    [:movement "Movement" #{:areas :trips :people :stops :od}]
    [:residents "Who lives where" #{:areas :population :buildings3d}]])
 
-(def default-scenario "close-milaneo")
-
 (def observed-kinds #{:storefront :licence :place :poi :building :parcel})
 (def simulation-kinds #{:visits :revenue :scenario :scenario-visits :trips :people :stops :od})
 (defonce state (atom {:active? true :city :stuttgart :area nil :year 2024 :hour 8.0 :month 1
-                      :clock-kind :day :playing? false :speed 60 :trail 30 :three-d true
+                      :clock-kind :day :playing? false :speed 60 :trail 30 :three-d false
                       :elevation-scale 1 :overlays #{:areas :population} :scenario nil :view nil
                       :payloads {} :statuses {} :generation 0 :request-ids {}}))
 (defonce handles (atom {}))
 (defonce playback (atom nil))
 (defonce move-timer (atom nil))
-(defonce clock-observer (atom nil))
+(defonce replay-controls (atom {}))
 (defn ^js el [id] (js/document.getElementById id))
 (defn text! [id value] (set! (.-textContent (el id)) value))
 (defn html! [id value] (set! (.-innerHTML (el id)) value))
@@ -63,7 +62,7 @@
 (defn- meur [x] (if (number? x) (str (if (pos? x) "+" "") (.toFixed (/ x 1e6) 1) " M€") "—"))
 (defn- map-object [] (some-> (:map @handles) deref))
 (defn- overlay-object [] (some-> (:overlay @handles) deref))
-(declare choose-view! draw! render! load-context! load-model! load-observed! load-spatial! select-area! inspect! sync-url! stop! render-time!)
+(declare load-scenario! render-evidence! choose-view! draw! render! load-context! load-model! load-observed! load-spatial! select-area! inspect! sync-url! stop! render-time! select-resident!)
 
 (defn- reset-selection! []
   (swap! state assoc :selection-token (random-uuid))
@@ -90,7 +89,7 @@
 
 (defn- context []
   (let [{:keys [city area year overlays run-key scenario]} @state]
-    {:city city :level (if (= city :stuttgart) "stadtteil" "local-area") :area (:eid area)
+    {:city city :level (get-in catalog/cities [city :region-level]) :area (:eid area)
      :year year :kinds (set (filter observed-kinds overlays))
      :bbox (when (viewport-scoped?) (bbox)) :stride 20 :run-key run-key :scenario scenario}))
 
@@ -161,9 +160,13 @@
   (swap! state assoc-in [:statuses key] status))
 
 (defn- scenario-options! [data]
+  (when (and (= :scenario (:view @state)) (nil? (:scenario @state)))
+    (when-let [key (:key (first (:scenarios data)))]
+      (swap! state assoc :scenario key)
+      (load-scenario!) (sync-url!)))
   (let [current (:scenario @state)]
     (html! "scenario-select"
-           (str "<option value=''>baseline — no intervention</option>"
+           (str "<option value=''>Baseline weekday</option>"
                 (apply str (for [s (:scenarios data)]
                              (str "<option value='" (esc (:key s)) "'" (when (= (:key s) current) " selected") ">"
                                   (esc (:label s)) "</option>")))))))
@@ -173,7 +176,11 @@
   ;; reads it, so a missing one is a status, never a computation
   (let [reqs (catalog/requests (context))]
     (if (and (:scenario @state) (:scenario reqs) (not (run-absent?)))
-      (request! :scenario (:scenario reqs) nil)
+      (do (swap! state update :payloads dissoc :scenario)
+          (request! :scenario (:scenario reqs)
+                    (fn [_]
+                      (render-evidence!)
+                      ((:open-anchor! @replay-controls)))))
       (clear-output! :scenario {:status :missing :message "no scenario selected"}))))
 
 (defn load-model! []
@@ -181,8 +188,7 @@
         runs (set (map str (get-in @state [:payloads :runs :areas])))
         area-key (some-> area :eid str)
         run-key (cond (and area-key (runs area-key)) area-key
-                      (= city :stuttgart) "stuttgart"
-                      :else "city")]
+                      :else (get-in catalog/cities [city :whole-city-run]))]
     (swap! state assoc :run-key run-key)
     (let [reqs (catalog/requests (context))]
       (doseq [key [:meta :aggregates :econ :scenarios]]
@@ -202,7 +208,7 @@
                    (or (on :visits) (on :hexagons)) (conj :visits)
                    (on :revenue) (conj :revenue)
                    (on :firms) (conj :firms)
-                   (or (on :trips) (on :people)) (conj :trips)
+                   (or (on :trips) (on :people) (:resident @state) (:scenario @state)) (conj :trips)
                    (on :stops) (conj :stops))]
       (doseq [key [:visits :revenue :firms :trips :stops]]
         (cond
@@ -253,7 +259,7 @@
     (render!)))
 
 (defn- area-options! [fc]
-  (html! "area-select" (str "<option value=''>whole city (no observed records)</option>"
+  (html! "area-select" (str "<option value=''>Whole city</option>"
                            (apply str (for [f (sort-by #(get-in % [:properties :name]) (:features fc))
                                             :let [p (:properties f)]]
                                         (str "<option value='" (esc (:eid p)) "'>" (esc (:name p)) "</option>")))))
@@ -274,7 +280,7 @@
   (when (and (= #{:areas :runs} (:context-settled @state))
              (not (:context-initialized? @state)))
     (let [{:keys [city requested-area]} @state
-          whole (if (= city :stuttgart) "stuttgart" "city")
+          whole (get-in catalog/cities [city :whole-city-run])
           fc (get-in @state [:payloads :areas])
           selected (when (and requested-area (not= requested-area whole))
                      (some #(when (= (str requested-area) (str (get-in % [:properties :eid])))
@@ -320,11 +326,11 @@
    (stop!)
    (cancel-move!)
    (reset-selection!)
-   (when load? (swap! state dissoc :requested-area))
+   (when load? (swap! state dissoc :requested-area :resident :follow-resident?))
    (swap! state assoc :area area :playing? false :last-spatial-bbox nil)
    (swap! state update :request-ids #(reduce (fn [ids k] (update ids k (fnil inc 0))) % [:meta :series :aggregates :econ :visits :firms :trips :stops :points :summary]))
-   (swap! state update :payloads #(select-keys % [:areas :cells :runs]))
-   (swap! state update :statuses #(select-keys % [:areas :cells :runs]))
+   (swap! state update :payloads #(select-keys % [:areas :districts :cells :runs]))
+   (swap! state update :statuses #(select-keys % [:areas :districts :cells :runs]))
    (set! (.-value (el "area-select")) (str (:eid area "")))
    (when-let [^js m (map-object)]
      (let [f (some #(when (= (:eid area) (get-in % [:properties :eid])) %) (get-in @state [:payloads :areas :features]))
@@ -386,6 +392,7 @@
                                :district-delta (select-keys props [:name :population])
                                :scenario-visits (select-keys props [:name :label])
                                props))
+                (when (#{:district-delta :scenario :scenario-visits} kind) "<a href='#district-effects'>Inspect scenario evidence</a>")
                 (when (= kind :area) "<button id='inspect-select-area' class='quiet'>explore this area →</button>")
                 "<div id='city-receipts'></div>"))
     (bind! "close-city-selection" "click" (fn [_] (reset-selection!)))
@@ -399,35 +406,111 @@
                        (html! "city-receipts" (receipts-html data)))))
             (.catch (fn [e] (when (and (= selection (:selection-token @state)) (el "city-receipts")) (text! "city-receipts" (str "Evidence unavailable: " (.-message e)))))))))))
 
+(defn- minute-label [minute]
+  (let [minute (int minute)]
+    (str (.padStart (str (quot minute 60)) 2 "0") ":" (.padStart (str (mod minute 60)) 2 "0"))))
+
+(defn- resident-frame! []
+  (let [{:keys [resident follow-resident? payloads hour clock-kind]} @state
+        legs (when (some? resident) (layers/resident-legs payloads resident))
+        frame (when (and (seq legs) (= :day clock-kind)) (time/traced-person-at legs (time/minute-at-hour hour)))
+        follow (el "follow")]
+    (set! (.-hidden (el "city-resident")) (nil? resident))
+    (set! (.-hidden follow) (nil? resident))
+    (set! (.-disabled follow) (not (or frame follow-resident?)))
+    (text! "follow" (if follow-resident? "Stop following" "Follow resident"))
+    (when (some? resident)
+      (text! "city-resident-title" (str "Resident " resident))
+      (text! "city-resident-location"
+             (let [purpose (case (get-in frame [:trace :purpose]) "store" "shopping" (get-in frame [:trace :purpose]))]
+               (case (:phase frame)
+                 :travel (str "Travelling · " (get-in frame [:trace :mode]) " · " purpose
+                              " · " (minute-label (:start frame)) "–" (minute-label (:end frame)))
+                 :stop (str "Between sampled legs · " purpose)
+                 :arrival (str "Arrival · " purpose " · " (minute-label (:start frame)))
+                 (cond
+                   (= :month clock-kind) "Select the simulated weekday to follow this resident."
+                   (= :loading (get-in @state [:statuses :trips :status])) "Loading sampled trips…"
+                   (empty? legs) "This resident has no legs in the loaded sample."
+                   :else "Position unavailable at this minute. Follow the sampled leg at its recorded time.")))))
+    (when (and follow-resident? (:position frame))
+      (when-let [^js m (map-object)]
+        (let [[lon lat] (:position frame) ^js centre (.getCenter m) zoom (.getZoom m)]
+          (when (or (not= lon (.-lng centre)) (not= lat (.-lat centre)) (< zoom 13.5))
+            (.jumpTo m #js {:center #js [lon lat] :zoom (max zoom 13.5)})))))
+    frame))
+
 (defn draw! []
   (when (active?)
-    (when-let [^js o (overlay-object)]
-      (.setProps o #js {:layers (layers/layers @state
-                                               (fn [kind data]
-                                                 (let [props (or (:properties data) data)
-                                                       area-id (:area-eid props)
-                                                       area-props (when area-id
-                                                                    (some #(when (= (str area-id) (str (get-in % [:properties :eid])))
-                                                                             (:properties %))
-                                                                          (get-in @state [:payloads :areas :features])))]
-                                                   (cond
-                                                     (= kind :area) (select-area! props)
-                                                     (and (= kind :cell) (nil? (:area @state)) area-props) (select-area! area-props)
-                                                     :else (inspect! kind data)))))}))))
+    (let [frame (resident-frame!)]
+      (when-let [^js o (overlay-object)]
+        (.setProps o #js {:layers (layers/layers (assoc @state :resident-frame frame)
+                                                 (fn [kind data]
+                                                   (let [props (or (:properties data) data)
+                                                         area-id (:area-eid props)
+                                                         area-props (when area-id
+                                                                      (some #(when (= (str area-id) (str (get-in % [:properties :eid])))
+                                                                               (:properties %))
+                                                                            (get-in @state [:payloads :areas :features])))]
+                                                     (cond
+                                                       (= kind :person) (select-resident! (:pid props) false)
+                                                       (= kind :area) (select-area! props)
+                                                       (and (= kind :cell) (nil? (:area @state)) area-props) (select-area! area-props)
+                                                       :else (inspect! kind data)))))})))))
+
+(defn- playback-speeds! [clock-kind]
+  (html! "time-speed"
+         (if (= clock-kind :day)
+           (str "<option value='1'>60×</option><option value='5'>300×</option>"
+                "<option value='15'>900×</option><option value='60' selected>3,600×</option><option value='180'>10,800×</option>")
+           "<option value='1'>1 month / sec</option>")))
+
+(defn- select-resident! [pid follow?]
+  (when follow? (cancel-move!))
+  (reset-selection!)
+  (swap! state assoc :resident pid :follow-resident? follow?)
+  ((:show! @replay-controls))
+  (draw!) (sync-url!))
+
+(defn- update-shopper-example! []
+  (let [{:keys [payloads hour]} @state
+        closure (seq (get-in payloads [:scenario :closed]))]
+    (set! (.-hidden (el "closure-shopper")) (not closure))
+    (when closure
+      (let [example (layers/shopping-example payloads (time/minute-at-hour hour))]
+        (set! (.-disabled (el "follow-closure-shopper")) (nil? example))
+        (text! "closure-shopper-note"
+               (cond
+                 example "This baseline trip ends at a venue in the closure. The scenario reports changes in visits by venue."
+                 (= :loading (get-in @state [:statuses :trips :status])) "Loading sampled trips…"
+                 :else "The loaded baseline sample has no shopping trip to a closed venue."))))))
+
+(defn- follow-shopper! []
+  (when-let [{:keys [pid timestamps]} (layers/shopping-example (:payloads @state) (time/minute-at-hour (:hour @state)))]
+    (stop!)
+    (when (not= :day (:clock-kind @state))
+      (set! (.-value (el "clock-kind")) "day")
+      (playback-speeds! :day)
+      (swap! state assoc :clock-kind :day :speed 60))
+    (swap! state assoc :hour (/ (+ (first timestamps) (peek timestamps)) 120))
+    (select-resident! pid true)
+    (render!)))
 
 (defn render-time! []
   (let [{:keys [hour clock-kind month playing?]} @state
         day? (= clock-kind :day) months (selected-months)
         available? (if day? (or (seq (get-in @state [:payloads :trips])) (seq (get-in @state [:payloads :visits :features]))
                                  (seq (get-in @state [:payloads :scenario :visits :venues]))) (seq months))
-        minute (int (* hour 60))]
+        minute (int (time/minute-at-hour hour))]
     (when (and playing? (not available?)) (stop!))
-    (text! "time-label" (if day? (str (.padStart (str (quot minute 60)) 2 "0") ":" (.padStart (str (mod minute 60)) 2 "0")) (str "month " month)))
-    (text! "time-play" (if (:playing? @state) "pause" "play"))
-    (set! (.-min (el "time-slider")) (if day? 0 (or (first months) 1)))
-    (set! (.-max (el "time-slider")) (if day? 1439 (or (last months) 1)))
-    (set! (.-value (el "time-slider")) (if day? minute month))
-    (doseq [id ["time-play" "time-slider" "time-back" "time-forward"]] (set! (.-disabled (el id)) (not available?)))
+    ((:clock @replay-controls)
+     {:text (if day? (minute-label minute) (str "month " month))
+      :playing? (:playing? @state) :available? (boolean available?)
+      :minute (if day? minute month) :minimum (if day? 0 (or (first months) 1))
+      :maximum (if day? 1439 (or (last months) 1))
+      :back-text (if day? "−15 min" "Previous month") :forward-text (if day? "+15 min" "Next month")
+      :back-label (if day? "Step backward 15 minutes" "Previous month")
+      :forward-label (if day? "Step forward 15 minutes" "Next month")})
     (set! (.-disabled (el "trip-trail")) (not day?))
     (text! "time-note" (if day?
                          (if available?
@@ -494,24 +577,39 @@
      ["clothing trip, expected" (m (:mean km)) (str "medium class, straight line per resident · " (m (:q05 km)) " to " (m (:q95 km)))]]))
 
 (defn- render-outcomes! []
-  (let [{:keys [payloads hour month]} @state
-        meta (:meta payloads)
-        hourly (when (seq (get-in payloads [:visits :features]))
-                 (reduce + (map #(get-in % [:properties :hours (int hour)] 0) (get-in payloads [:visits :features]))))]
-    (html! "city-outcomes"
-     (if-let [sc (and (:scenario @state) (:scenario payloads))]
-       (str "<div class='outcome-title'><span class='section-label'>POLICY SCENARIO</span><strong>" (esc (:label sc))
-            "</strong><small>interventional prediction under " (count (:particles sc)) " posterior particles · same residents, same money</small></div>"
-            (apply str (for [[label value note] (scenario-metrics sc)]
-                         (str "<div class='metric'><span>" label "</span><strong>" value "</strong><small>" note "</small></div>"))))
-           (str "<div class='outcome-title'><span class='section-label'>" (if (run-absent?) "NO SIMULATION RUN" "PUBLISHED RUN") "</span><strong>" (esc (:run-key @state)) "</strong><small>" (cond (run-absent?) "NO PUBLISHED OUTPUTS FOR THIS SELECTION"
-                                                                                                                                                      (:fixture meta) "SYNTHETIC UI TEST FIXTURE"
-                                                                                                                                                      :else "viewing outputs, not rerunning") "</small></div>"
-                (apply str (for [[label value note] [["modeled persons" (:persons meta) "run population; may include commuters"]
-                                                      ["visits / selected hour" hourly "loaded viewport; expected visits"]
-                                                      ["sampled people" (when (seq (:trips payloads)) (count (set (map :pid (:trips payloads))))) "loaded trajectories, not total population"]
-                                                      ["policy scenarios" (count (get-in payloads [:scenarios :scenarios])) "published under the posterior · choose one on the left"]]]
-                             (str "<div class='metric'><span>" label "</span><strong>" (fmt value) "</strong><small>" note "</small></div>"))))))))
+  (let [{:keys [overlays payloads hour]} @state
+        scenario? (some overlays [:scenario :scenario-visits])
+        sc (:scenario payloads)
+        result (cond
+                 scenario?
+                 (when sc
+                   (let [[_ value] (first (scenario-metrics sc))]
+                     {:label (:label sc) :value value :intervention true
+                      :note "Modeled annual revenue change at closed venues · posterior mean"
+                      :href "#district-effects"}))
+                 (and (overlays :visits) (seq (get-in payloads [:visits :features])))
+                 {:label "Storefront visits this hour"
+                  :value (fmt (reduce + (map #(get-in % [:properties :hours (int hour)] 0)
+                                            (get-in payloads [:visits :features]))))
+                  :note "Simulated visits in the loaded area" :href "#evidence"}
+                 (some? (get-in payloads [:meta :persons]))
+                 {:label "Simulated population" :value (fmt (get-in payloads [:meta :persons]))
+                  :note "Residents and commuters in the published run" :href "#evidence"})]
+    (shell/render-result! result)))
+
+(defn- render-evidence! []
+  (when (and (not (.-hidden (el "city-inspector"))) (not (.-hidden (el "evidence"))))
+    (let [sc (get-in @state [:payloads :scenario])]
+      (doseq [^js link (array-seq (.querySelectorAll js/document "[data-scenario-link]"))]
+        (set! (.-hidden link) (nil? sc)))
+      (set! (.-hidden (el "scenario-metrics")) (nil? sc))
+      (html! "scenario-metric-values"
+             (if (and sc (= :stuttgart (:city @state)))
+               (str "<dl>"
+                    (apply str (for [[label value note] (scenario-metrics sc)]
+                                 (str "<dt>" (esc label) "</dt><dd>" (esc value) " · " (esc note) "</dd>")))
+                    "</dl>") ""))
+      (panels/render! (el "city-evidence") @state))))
 
 (defn render! []
   (when (active?)
@@ -522,25 +620,28 @@
                                     (not (and (= :missing (:status s)) (= k :scenario))))]
                      (str (name k) ": " (or (:message s) (name (:status s)))))
           loading (count (filter #(= :loading (:status %)) (vals statuses)))]
-      (text! "camera" (if (:three-d @state) "3D view" "2D view"))
+      (text! "camera" "Tilt map")
       (.setAttribute (el "camera") "aria-pressed" (str (:three-d @state)))
       (.setAttribute (el "lab-map") "aria-label" (str (name city) " city data and simulation map"))
-      (when-let [^js scope (.querySelector js/document ".project-name span")]
-        (set! (.-textContent scope) (str "/ " (str/capitalize (name city)))))
-      (text! "map-scope" (str/upper-case (str (name city) " / " (or (:name area) "whole city"))))
-      (text! "map-heading" (cond (get-in payloads [:meta :fixture]) "synthetic UI test fixture"
-                                  :else "observe. simulate. compare."))
+      (text! "city-name" (str/capitalize (name city)))
+      (set! (.-hidden (el "elevation-controls")) (not (some overlays [:population :rent])))
       (text! "status" (cond (pos? loading) (str "Loading " loading " data layers…")
-                            (seq failures) "Some data is unavailable. See layer status and evidence; missing is not zero."
+                            (seq failures) "Some data is unavailable. Inspect evidence for details."
                             (run-absent?) (no-run-message)
-                            :else (str "Run " (:run-key @state) " · seed " (get-in payloads [:meta :seed] "—") " · playback does not rerun the model")))
+                            (get-in payloads [:meta :fixture]) "Synthetic test fixture"
+                            :else ""))
       (text! "city-data-status" (str/join " · " failures))
       (text! "scenario-question"
              (let [sc (:scenario payloads) st (get-in statuses [:scenario :status])]
-               (cond (not (:scenario @state)) "Scenarios are evaluated on the server under the fitted posterior; choosing one reads a published result, it does not rerun the model."
+               (cond (not (:scenario @state)) ""
                      (= st :loading) "Loading the published scenario…"
-                     sc (str (:question sc) " Evaluated under " (count (:particles sc)) " posterior particles; see the evidence column.")
+                     (and sc (some overlays [:scenario :scenario-visits])) (:question sc)
+                     sc ""
                      :else "This scenario is not published on the selected run.")))
+      (when-let [^js button (.querySelector js/document "[data-view=scenario]")]
+        (set! (.-disabled button) (empty? (get-in payloads [:scenarios :scenarios]))))
+      (set! (.-hidden (el "scenario-key")) (not (and (:scenario payloads) (overlays :scenario))))
+      (set! (.-hidden (el "calibration-link")) (not (and (:scenario payloads) (some overlays [:scenario :scenario-visits]))))
       (doseq [^js box (array-seq (.querySelectorAll js/document "[data-overlay]"))]
         (set! (.-checked box) (boolean (overlays (keyword (.. box -dataset -overlay))))))
       (doseq [[k _ key] definitions]
@@ -564,8 +665,8 @@
                  "Trips and people are a sample of the population; visits and revenue are the whole city."))
       (set! (.-innerHTML (.querySelector js/document ".map-key"))
             (layers/legend @state))
-      (panels/render! (el "city-evidence") @state)
-      (render-time!) (render-outcomes!) (draw!))))
+      (render-evidence!)
+      (update-shopper-example!) (render-time!) (render-outcomes!) (draw!))))
 
 (defn sync-url! []
   (when (active?)
@@ -579,6 +680,8 @@
       (if-let [a (:eid (:area @state))] (.set q "area" (str a)) (.delete q "area"))
       (if-let [sc (:scenario @state)] (.set q "scenario" sc) (.delete q "scenario"))
       (if-let [v (:view @state)] (.set q "view" (name v)) (.delete q "view"))
+      (if-some [pid (:resident @state)] (.set q "resident" (str pid)) (.delete q "resident"))
+      (if (:follow-resident? @state) (.set q "follow" "1") (.delete q "follow"))
       (js/history.replaceState nil "" (.toString u)))))
 
 (defn stop! []
@@ -594,9 +697,9 @@
         (when (>= dt 1)
           (let [months (selected-months) later (first (filter #(> % (:month @state)) months))]
             (swap! state assoc :month (or later (first months))))))
-      (render-time!) (render-outcomes!) (draw!)
+      (render-time!) (draw!)
       ;; Monthly charts refresh on integer frame changes; daily charts once per second.
-      (when (or (not= month (:month @state)) (not= (int hour) (int (:hour @state)))) (panels/render! (el "city-evidence") @state))
+      (when (or (not= month (:month @state)) (not= (int hour) (int (:hour @state)))) (render-outcomes!) (render-evidence!))
       (reset! playback (js/requestAnimationFrame #(tick! (if (or (= clock-kind :day) (>= dt 1)) stamp previous) %))))))
 
 (defn- buildings! []
@@ -611,7 +714,7 @@
 
 (defn- home! []
   (when-let [^js m (map-object)]
-    (.jumpTo m (clj->js {:center (if (= :stuttgart (:city @state)) [9.18 48.78] [-123.11 49.27])
+    (.jumpTo m (clj->js {:center (get-in catalog/cities [(:city @state) :center])
                          :zoom 11.5 :pitch (if (:three-d @state) 45 0) :bearing 0}))))
 
 (defn start! []
@@ -629,9 +732,10 @@
   [view]
   (when-let [[_ _ overlays] (some #(when (= view (first %)) %) views)]
     (when (and (= view :scenario) (nil? (:scenario @state)))
-      (swap! state assoc :scenario default-scenario)
-      (set! (.-value (el "scenario-select")) default-scenario)
-      (load-scenario!))
+      (when-let [key (get-in @state [:payloads :scenarios :scenarios 0 :key])]
+        (swap! state assoc :scenario key)
+        (set! (.-value (el "scenario-select")) key)
+        (load-scenario!)))
     (swap! state assoc :view view :overlays overlays)
     (doseq [^js box (array-seq (.querySelectorAll js/document "[data-overlay]"))]
       (set! (.-checked box) (contains? overlays (keyword (.. box -dataset -overlay)))))
@@ -641,14 +745,13 @@
 
 (defn init! [options]
   (reset! handles options)
-  (when @clock-observer (.disconnect ^js @clock-observer))
-  (let [observer (js/ResizeObserver.
-                  (fn [_]
-                    (.setProperty (.-style (.closest (el "city-time") ".map-stage"))
-                                  "--city-clock-height" (str (.-height (.getBoundingClientRect (el "city-time"))) "px"))))]
-    (.observe observer (el "city-time"))
-    (reset! clock-observer observer))
   (let [q (.-searchParams (js/URL. (.-href js/location)))
+        published (some-> (.querySelector js/document "meta[name=city-data]") (.getAttribute "content"))
+        release (.get q "release")
+        archive (when (and (not published) (= "stuttgart" (.get q "city")) release)
+                  (if (re-matches #"[a-f0-9]{64}" release)
+                    (str "data/stuttgart/" release "/")
+                    (throw (js/Error. "Invalid Stuttgart release identifier."))))
         area-param (.get q "area")
         city (if (.has q "city")
                (if (= "vancouver" (.get q "city")) :vancouver :stuttgart)
@@ -667,6 +770,9 @@
                      lon (js/parseFloat lon) lat (js/parseFloat lat)]
                  (when (and (empty? more) (js/isFinite lon) (js/isFinite lat)) [lon lat]))
         zoom (let [z (js/parseFloat (.get q "zoom"))] (when (js/isFinite z) z))
+        resident (when-let [id (.get q "resident")]
+                   (let [pid (js/Number id)]
+                     (when (and (re-matches #"[0-9]+" id) (js/Number.isSafeInteger pid)) pid)))
         clock-kind (if (= "month" (.get q "clock-kind")) :month :day)
         base (.get q "base")]
     (swap! state assoc :city city :year (number-param "year" 2024) :month (number-param "month" 1) :hour (mod (number-param "hour" 8) 24)
@@ -674,34 +780,33 @@
            :elevation-scale (max 0.25 (min 3 (number-param "elevation" 1)))
            :api (or (.get q "api") "http://localhost:8090") :sim-api (or (.get q "sim-api") "http://localhost:8092")
            ;; <meta name="city-data" content="data/stuttgart/"> marks a static export
-           :static-data (some-> (.querySelector js/document "meta[name=city-data]") (.getAttribute "content"))
+           :static-data (or published archive)
            :requested-area area-param :requested-inspect (.get q "inspect")
+           :resident resident :follow-resident? (and (some? resident) (= "1" (.get q "follow")))
            :scenario (not-empty (or (.get q "scenario") ""))
            :requested-center center :requested-zoom zoom
            :requested-pitch (case base "3d" 55 "osm" 0 nil)
-           :three-d (if base (= base "3d") true)
+           :three-d (= base "3d")
            :overlays (if (.has q "overlays") requested (into #{:areas :population} legacy-overlays)))
-    ;; a bare address opens on the intervention, not on a population map; a
-    ;; link naming a scenario or a view without overlays gets that view's layers
+    ;; A bare address explores the day. Article links open their published scenario.
     (when-not (or (.has q "overlays") (.has q "sim"))
-      (let [v (or (some #(when (= (.get q "view") (name (first %))) (first %)) views) :scenario)]
-        (swap! state assoc :view v :overlays (last (some #(when (= v (first %)) %) views)))
-        (when (and (= v :scenario) (not (.has q "scenario")))
-          (swap! state assoc :scenario default-scenario))))
+      (let [[v _ overlays] (or (some #(when (= (.get q "view") (name (first %))) %) views)
+                               (some #(when (= (if (:scenario @state) :scenario :movement) (first %)) %) views))]
+        (swap! state assoc :view v :overlays overlays)))
     (when-let [v (and (.has q "overlays") (some #(when (= (.get q "view") (name (first %))) (first %)) views))]
       (swap! state assoc :view v))
     (when (= base "3d") (swap! state update :overlays conj :buildings3d))
     (.toggle (.-classList js/document.body) "static-export" (static?))
+    (when-let [link (el "city-library")]
+      (set! (.-href link) (str "runs.html?city=" (name city)))
+      (set! (.-hidden link) (some? published)))
     (when-let [^js m (map-object)]
       (when (= base "3d") (.setStyle m "https://tiles.openfreemap.org/styles/positron"))
       (when (= base "osm") (.setPitch m 0)))
-    (set! (.-value (el "city-select")) (name city))
     (set! (.-value (el "observed-year")) (:year @state))
     (set! (.-value (el "city-elevation")) (:elevation-scale @state))
     (set! (.-value (el "clock-kind")) (name clock-kind))
-    (html! "time-speed" (if (= clock-kind :day)
-                           "<option value='15'>15 min / sec</option><option value='60' selected>60 min / sec</option><option value='180'>180 min / sec</option>"
-                           "<option value='1'>1 month / sec</option>"))
+    (playback-speeds! clock-kind)
     (set! (.-value (el "store-api")) (:api @state)) (set! (.-value (el "simulation-api")) (:sim-api @state))
     (html! "overlay-picker"
            (let [labels (into {} (map (fn [[k label _]] [k label]) definitions))]
@@ -729,9 +834,6 @@
                           (if (.getSource m "openmaptiles") (buildings!) (.setStyle m "https://tiles.openfreemap.org/styles/positron"))))
                       (if (observed-kinds k) (load-observed!) (load-spatial!))
                       (render!) (sync-url!)))))
-    (bind! "city-select" "change" (fn [^js e]
-                                    (swap! state assoc :city (keyword (.. e -target -value)) :area nil :requested-area nil)
-                                    (home!) (load-context!) (sync-url!)))
     (bind! "area-select" "change" (fn [^js e]
                                     (select-area! (some #(when (= (.. e -target -value) (str (get-in % [:properties :eid]))) (:properties %))
                                                         (get-in @state [:payloads :areas :features])))))
@@ -740,6 +842,12 @@
                                           (swap! state assoc :scenario v)
                                           (load-scenario!)
                                           (choose-view! (if v :scenario :economy)))))
+    (bind! "follow-closure-shopper" "click" follow-shopper!)
+    (bind! "follow" "click" (fn [_]
+                             (select-resident! (:resident @state) (not (:follow-resident? @state)))))
+    (bind! "clear-city-resident" "click" (fn [_]
+                                          (swap! state dissoc :resident :follow-resident?)
+                                          (draw!) (sync-url!)))
     (bind! "observed-year" "change" (fn [^js e] (let [year (js/parseInt (.. e -target -value))]
                                                   (when (<= 1900 year 2100) (swap! state assoc :year year) (load-observed!) (sync-url!)))))
     (bind! "city-elevation" "input" (fn [^js e]
@@ -754,37 +862,54 @@
                                        (js/history.replaceState nil "" (.toString u))) (load-context!)))
     (bind! "clock-kind" "change" (fn [^js e]
                                    (stop!) (swap! state assoc :clock-kind (keyword (.. e -target -value)))
-                                   (html! "time-speed" (if (= :day (:clock-kind @state)) "<option value='15'>15 min / sec</option><option value='60' selected>60 min / sec</option><option value='180'>180 min / sec</option>" "<option value='1'>1 month / sec</option>"))
+                                   (playback-speeds! (:clock-kind @state))
                                    (swap! state assoc :speed (if (= :day (:clock-kind @state)) 60 1)) (render!) (sync-url!)))
-    (bind! "time-slider" "input" (fn [^js e]
-                                   (stop!) (swap! state assoc (if (= :day (:clock-kind @state)) :hour :month)
-                                                (/ (js/parseFloat (.. e -target -value)) (if (= :day (:clock-kind @state)) 60 1)))
-                                   (when (= :month (:clock-kind @state))
-                                     (when-let [row (time/month-row (get-in @state [:payloads :series]) (:month @state))]
-                                       (swap! state assoc :month (:month row))))
-                                   (render!) (sync-url!)))
-    (bind! "time-speed" "change" (fn [^js e] (swap! state assoc :speed (js/parseFloat (.. e -target -value)))))
     (bind! "trip-trail" "change" (fn [^js e] (swap! state assoc :trail (js/parseFloat (.. e -target -value))) (draw!)))
-    (doseq [[id direction] [["time-back" -1] ["time-forward" 1]]]
-      (bind! id "click" (fn [_]
-                         (stop!)
-                         (if (= :day (:clock-kind @state)) (swap! state update :hour #(mod (+ % (* direction 0.25)) 24))
-                             (let [months (selected-months) current (:month @state)
-                                   next (if (pos? direction) (first (filter #(> % current) months)) (last (filter #(< % current) months)))]
-                               (when next (swap! state assoc :month next)))) (render!) (sync-url!))))
-    (bind! "time-play" "click" (fn [_]
-                                  (if (:playing? @state) (stop!)
-                                      (do (swap! state assoc :playing? true)
-                                          (reset! playback (js/requestAnimationFrame #(tick! % %))))) (render-time!)))
+    (swap! replay-controls assoc :clock
+           (shell/mount-clock!
+            {:play (fn []
+                     (if (:playing? @state) (do (stop!) (sync-url!))
+                         (do (swap! state assoc :playing? true)
+                             (reset! playback (js/requestAnimationFrame #(tick! % %)))))
+                     (render-time!))
+             :seek (fn [value]
+                     (stop!)
+                     (if (= :day (:clock-kind @state))
+                       (swap! state assoc :hour (/ value 60))
+                       (let [row (time/month-row (get-in @state [:payloads :series]) value)]
+                         (swap! state assoc :month (or (:month row) value))))
+                     (render!) (sync-url!))
+             :step (fn [direction]
+                     (stop!)
+                     (if (= :day (:clock-kind @state))
+                       (swap! state update :hour #(mod (+ % (* direction 0.25)) 24))
+                       (let [months (selected-months) current (:month @state)
+                             next-month (if (pos? direction)
+                                          (first (filter #(> % current) months))
+                                          (last (filter #(< % current) months)))]
+                         (when next-month (swap! state assoc :month next-month))))
+                     (render!) (sync-url!))
+             :speed #(swap! state assoc :speed %)}))
+    (swap! replay-controls merge
+           (shell/mount-inspector!
+            {:initial (if (:scenario @state) "scenarios" "map")
+             :reveal? (some? resident)
+             :anchor-view #(when (re-matches #"district-effects|calibration-(short|medium|long)" %) "evidence")
+             :on-change (fn [view open?]
+                          (when (and open? (= view "evidence"))
+                            (when (:playing? @state)
+                              (stop!) (sync-url!) (render-time!))
+                            (render-evidence!)))}))
     (when-let [^js m (map-object)]
       (.on m "load" (fn [_] (when (active?) (draw!))))
       (.on m "style.load" (fn [_] (buildings!)))
       (.on m "moveend" (fn [_]
-                          (when (and (active?) (:run-key @state) (viewport-scoped?)
+                          (when (and (active?) (:run-key @state) (viewport-scoped?) (not (:follow-resident? @state))
                                      (not= (bbox) (:last-spatial-bbox @state)))
                             (when @move-timer (js/clearTimeout @move-timer))
                             (reset! move-timer (js/setTimeout load-spatial! 400))))))
     (start!)
+    ((:open-anchor! @replay-controls))
     (set! (.-cityExplorer js/window)
           #js {:state (fn [] (clj->js (dissoc @state :payloads)))
                :payload (fn [key] (clj->js (get-in @state [:payloads (keyword key)])))
@@ -793,6 +918,10 @@
 (defn camera! []
   (swap! state update :three-d not)
   (when-let [^js m (map-object)] (.setPitch m (if (:three-d @state) 45 0)))
-  (text! "camera" (if (:three-d @state) "3D view" "2D view")) (draw!))
+  (.setAttribute (el "camera") "aria-pressed" (str (:three-d @state))) (draw!))
 
-(defn recenter! [] (home!))
+(defn recenter! []
+  (when (:follow-resident? @state)
+    (swap! state assoc :follow-resident? false)
+    (draw!) (sync-url!))
+  (home!))

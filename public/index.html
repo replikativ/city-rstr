@@ -1,10 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>City laboratory · simmis</title></head>
-<body><p><a id="laboratory" href="/lab.html?mode=city">Open the city laboratory</a></p>
+<body><p><a id="laboratory" href="explorer.html">Open the city laboratory</a></p>
 <script>
-  const destination = new URL('/lab.html', location.href);
+  const linkedView = Boolean(location.search || location.hash);
+  const query = new URLSearchParams(location.search);
+  const vancouver = query.get('city') === 'vancouver' || query.has('dayRun') || query.get('coverage') === 'region';
+  const overview = !location.hash && [...query.keys()].every(key => ['city','minute','release','metric','traveller','people','limit','venue','district','basket','camera'].includes(key));
+  const destination = new URL(overview ? 'explorer.html' : vancouver ? 'cityday.html' : 'lab.html', location.href);
   destination.search = location.search;
-  if (!destination.searchParams.has('mode')) destination.searchParams.set('mode', 'city');
+  if (!overview && linkedView && !vancouver && !destination.searchParams.has('mode')) destination.searchParams.set('mode', 'city');
   destination.hash = location.hash;
   document.getElementById('laboratory').href = destination.href;
   location.replace(destination.href);

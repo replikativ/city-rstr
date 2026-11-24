@@ -1,0 +1,22 @@
+#weekday-explorer .overview-panel {position:absolute;top:12px;left:12px;z-index:2;padding:12px;background:var(--surface);color:var(--ink);max-height:calc(100% - 24px);overflow:auto;box-sizing:border-box;width:max-content;max-width:min(85vw,23rem);font:12px var(--mono)}
+.overview-tools label,.overview-clock label {display:flex;align-items:center;justify-content:space-between;gap:8px}
+.overview-clock {display:flex;align-items:center;gap:12px;padding:9px 16px;background:var(--surface);color:var(--ink);font:14px var(--mono)}
+.overview-clock input {flex:1;min-width:0}.overview-tools output:empty {display:none}
+
+.overview-panel summary {cursor:pointer;font-weight:bold}
+.overview-tools {display:grid;grid-template-columns:minmax(0,1fr);gap:7px;margin-top:7px}
+.overview-tools [hidden] {display:none}
+.overview-tools select {width:60%;min-width:0;max-width:60%}
+#weekday-explorer .replay-stage {min-height:0}
+#trace-control {display:grid;gap:6px}
+#trace-control[hidden] {display:none}
+#agent-limit {width:7em}
+#agent-count {color:#f3ce98}
+
+.overview-map-key {position:absolute;bottom:30px;left:10px;max-width:min(32rem,calc(100% - 20px));padding:5px 8px;background:var(--surface);font:12px var(--mono);pointer-events:none}
+.overview-map-key::before {content:"● ";color:#f3be70}
+.overview-map-key:empty,.replay-stage:has(#trace-control[hidden]) .overview-map-key {display:none}
+
+#shop-comparison {display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:0;font-variant-numeric:tabular-nums}
+#shop-comparison[hidden],#shop-comparison dd:empty,#shop-comparison dt:has(+ dd:empty) {display:none}
+#shop-comparison dd {margin:0;text-align:right}

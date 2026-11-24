@@ -1,0 +1,12 @@
+<p class="lead">If Milaneo moved to Zuffenhausen, which districts and shops would gain spending, and where would the customers come from?</p>
+<h2>People, workplaces and diaries</h2>
+<p>The Stuttgart weekday includes {{RESIDENTS}} synthetic residents and {{INCOMING}} incoming commuters. The Zensus grid constrains where residents live. Employment records describe commuter origins. A commuter count in a municipality represents an employment relationship. Turning it into a journey requires a workplace assignment, a schedule and a route.</p>
+<p>Activity diaries transfer the order and timing of activities from Canadian time-use respondents. German mobility evidence constrains trip frequency. Local observations are therefore especially valuable for testing the time of day at which Stuttgart’s modeled trips take place.</p>
+{{STUTTGART_FIGURE}}
+<h2>How shoppers choose</h2>
+<p>A shop’s appeal depends on its measured attractiveness and its distance from the shopper’s location. In each demand class, raising attractiveness increases the shop’s weight and greater distance reduces it. The chance of choosing a shop is its weight divided by the sum of the weights of all competing shops.</p>
+<p class="equation" aria-label="Choice weight equals attractiveness to the power alpha times one plus distance divided by distance scale to the power minus beta">w = A<sup>α</sup> (1 + d / d₀)<sup>−β</sup></p>
+<p>The model estimates three parameters for each of three demand classes using published turnover for 23 districts. The likelihood compares expected and observed turnover on a logarithmic scale. Agreement at district level checks the spatial allocation of spending at the scale used for fitting. Receipts or entries from an individual shop would test a finer prediction.</p>
+<h2>The Milaneo intervention</h2>
+<p>Closing Milaneo removes it from the choice set. Relocating it introduces a new competing destination. For each draw of the fitted parameters, the model compares the same population under both venue sets. The spending estimate averages those paired differences. The 90% interval spans their 5th to 95th percentiles. The map also shows hourly visit changes from a sampled weekday. A shop can gain visits in one hour while losing spending across the full period.</p>
+<p>The original exposition works through the joint distribution, priors, likelihood, money flows and interventions, with diagrams and references. <a href="model.html">Read the full Stuttgart probabilistic model</a>.</p>

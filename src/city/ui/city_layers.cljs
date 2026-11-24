@@ -5,8 +5,9 @@
    along the day's clock, transit stops and the area-to-area arcs. Payload
    data is reshaped once per payload set (`prepared`); `layers` then only
    filters by the current state, and `legend` describes what is drawn."
-  (:require ["@deck.gl/layers" :refer [GeoJsonLayer PolygonLayer ScatterplotLayer ArcLayer]]
+  (:require ["@deck.gl/layers" :refer [GeoJsonLayer PolygonLayer ScatterplotLayer ArcLayer PathLayer]]
             ["@deck.gl/geo-layers" :refer [TripsLayer]]
+            [city.ui.stuttgart-replay :as stuttgart]
             [city.ui.timeline :as time]))
 
 (def colors {:storefront [215 142 62] :licence [111 143 196] :place [51 112 83]
@@ -57,15 +58,24 @@
                                                                      fs)))))
                         :firms (clj->js (get-in payloads [:firms :features]))
                         :stops (clj->js (get-in payloads [:stops :features]))
-                        :trips (clj->js (:trips payloads)) :groups (time/group-trips (:trips payloads))
+                        :trips (clj->js (:trips payloads))
+                        :residents (into {} (map (juxt (comp :pid first) identity)) (time/group-trips (:trips payloads)))
+                        :closure-trips (stuttgart/closed-shopping-legs (:trips payloads) (get-in payloads [:scenario :closed]))
                         :od (clj->js od)})))
   @prepared)
 
-(defn layers [{:keys [payloads overlays hour three-d elevation-scale area trail] :as state} pick!]
-  (let [{:keys [areas cells points visits revenue scenario scenario-visits districts firms stops trips groups od]} (data! payloads)
+(defn resident-legs [payloads pid]
+  (get-in (data! payloads) [:residents pid]))
+
+(defn shopping-example [payloads minute]
+  (stuttgart/shopping-example (:closure-trips (data! payloads)) minute))
+
+(defn layers [{:keys [payloads overlays hour three-d elevation-scale area trail resident resident-frame]} pick!]
+  (let [{:keys [areas cells points visits revenue scenario scenario-visits districts firms stops trips residents od]} (data! payloads)
         population? (overlays :population) rent? (overlays :rent)
         point-pos (fn [^js d] (.. d -geometry -coordinates))
         click (fn [kind] (fn [^js info] (when-let [d (.-object info)] (pick! kind (js->clj d :keywordize-keys true)))))
+        minute (time/minute-at-hour hour)
         hour-index (min 23 (int hour))]
     (clj->js
      (remove nil?
@@ -180,10 +190,11 @@
          (TripsLayer.
           #js {:id "city-trips" :parameters #js {:depthCompare "always"} :data trips :getPath (fn [^js d] (.-path d)) :getTimestamps (fn [^js d] (.-timestamps d))
                :getColor (fn [^js d] (clj->js (get purpose-colors (.-purpose d) [110 110 110])))
-               :currentTime (* hour 60) :trailLength trail :widthMinPixels 2 :opacity 0.85}))
+               :currentTime minute :trailLength trail :widthMinPixels 2 :opacity 0.85}))
        (when (overlays :people)
          (ScatterplotLayer.
-          #js {:id "city-people" :parameters #js {:depthCompare "always"} :data (clj->js (keep #(time/person-at % (* hour 60)) groups))
+          #js {:id "city-people" :parameters #js {:depthCompare "always"}
+               :data (clj->js (keep (fn [[pid legs]] (when (not= resident pid) (time/person-at legs minute))) residents))
                :getPosition (fn [^js d] (.-position d)) :getRadius 4 :radiusUnits "pixels"
                :getFillColor (fn [^js d] (if (aget d "moving?") #js [213 157 62] #js [66 78 94]))
                :pickable true :onClick (click :person)}))
@@ -192,7 +203,18 @@
           #js {:id "city-od" :parameters #js {:depthCompare "always"} :data od :getSourcePosition (fn [^js d] (.-source d)) :getTargetPosition (fn [^js d] (.-target d))
                :getWidth (fn [^js d] (min 8 (+ 1 (/ (js/Math.sqrt (.-trips d)) 20))))
                :getSourceColor #js [71 107 162] :getTargetColor #js [194 142 62]
-               :pickable true :onClick (click :flow)}))]))))
+               :pickable true :onClick (click :flow)}))
+       (when (= :travel (:phase resident-frame))
+         (PathLayer.
+          #js {:id "city-followed-route" :parameters #js {:depthCompare "always"}
+               :data #js [(clj->js (get-in resident-frame [:trace :path]))] :getPath identity
+               :getColor #js [38 93 165] :widthMinPixels 4}))
+       (when-let [position (:position resident-frame)]
+         (ScatterplotLayer.
+          #js {:id "city-followed-resident" :parameters #js {:depthCompare "always"}
+               :data #js [(clj->js position)] :getPosition identity :getRadius 8 :radiusUnits "pixels"
+               :stroked true :getLineColor #js [249 247 237] :lineWidthMinPixels 2
+               :getFillColor #js [38 93 165]}))]))))
 
 (defn legend [{:keys [overlays]}]
   (let [swatch (fn [color label] (str "<span><i style='display:inline-block;width:9px;height:9px;margin-right:5px;background:" color "'></i>" label "</span>"))]

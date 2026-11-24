@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vancouver population atlas · City laboratory</title>
+<link rel="stylesheet" href="lab/explorer.css"><link rel="stylesheet" href="lab/atlas.css"></head>
+<body>
+<header class="masthead"><a class="wordmark" href="https://simm.is">simm<span>is</span></a><a href="runs.html?city=vancouver">City runs</a><a href="cityday.html">City day</a><a href="vancouver.html">Mount Pleasant replay</a></header>
+<main>
+<header class="intro"><div><p class="context">Vancouver · 2021 Census</p><h1>Population atlas</h1></div><output id="status" role="status">Loading population…</output></header>
+<section class="atlas-grid">
+ <div class="map-card"><div class="map-heading"><h2 id="map-heading">Residents at paid work</h2><select id="atlas-layer" aria-label="Map measure" hidden><option value="work">Paid work</option><option value="dwelling">Owner dwelling values</option><option value="shelter">Tenant shelter costs</option></select><span id="map-time">08:00</span></div>
+ <div class="map-viewport"><svg id="atlas-map" role="group" aria-label="Share of home neighbourhood residents doing paid work at the selected time"></svg>
+ <div class="map-tools"><span aria-label="North is up">↑ N</span><button id="zoom-area" disabled>Zoom to selection</button><button id="zoom-city" disabled>City view</button></div></div>
+ <div class="map-foot"><span><i></i> <span id="atlas-scale-low">0%</span> <b></b> <span id="atlas-scale-high">50%+</span> &nbsp; <i class="park-key"></i> Park &nbsp; <i class="other-land"></i> Other land</span><span>Statistics Canada · <a href="https://opendata.vancouver.ca/explore/dataset/parks-polygon-representation/">City of Vancouver</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a></span></div></div>
+ <aside><label class="coverage-control">Study area <select id="coverage"><option value="city">City of Vancouver</option><option value="region">Vancouver, UBC &amp; North Shore</option></select></label><div class="pickers"><label>Home neighbourhood<select id="area"><option value="">City of Vancouver</option></select></label>
+ <label>Dissemination area<select id="da" disabled><option value="">All areas</option></select></label></div>
+ <h2 id="scope">City of Vancouver</h2><div class="stats"><div><strong id="pop">—</strong><span>Residents</span></div><div><strong id="homes">—</strong><span>Households</span></div></div>
+ <label for="minute">Weekday activity at <output id="time"></output></label>
+ <div class="time-row"><button id="play">Play</button><input id="minute" type="range" min="240" max="1679" value="480" aria-label="Weekday minute"></div>
+ <div id="activity" aria-label="Most common simulated activities"></div><p class="hint">People are counted in their home neighbourhood throughout the day.</p></aside>
+</section>
+<section class="details-grid"><section><h2>Check the census fit</h2><p id="reconcile"></p>
+<details id="boundary-check" hidden><summary>Compare the replay with the municipal boundary</summary><p id="boundary-totals"></p><p id="boundary-areas"></p><a href="https://www150.statcan.gc.ca/n1/en/catalogue/92-151-X">2021 Census Geographic Attribute File</a></details>
+<button id="outlier">Inspect the corrected Downtown area</button>
+<table id="fit"><thead><tr><th>Measure</th><th>Model</th><th>Census</th><th>Gap (pp)</th></tr></thead><tbody></tbody></table>
+<details id="housing"><summary>Local housing values and costs</summary><p id="housing-context"></p><p id="housing-tenants"></p>
+<div id="housing-model" hidden><table><thead><tr><th>Synthetic households</th><th>With value</th><th>Mean</th><th>Median</th></tr></thead><tbody id="housing-model-rows"></tbody></table>
+<p>Household estimates use Vancouver metro survey records and local Census means where there are enough households. The median reflects the resulting synthetic distribution.</p><p id="housing-median-check"></p></div>
+<p>The 2021 Census asked owners what their home would sell for. Averages cover non-farm, non-reserve dwellings. Neighbourhood figures weight each published census area by its owner or tenant households. Outstanding loan balances and other household assets are unknown.</p>
+<details id="property-assessments" hidden><summary>Assessed property values</summary><p id="assessment-scope"></p>
+<table><thead><tr><th scope="col">Assessment records</th><th scope="col">Count</th><th scope="col">Median total</th><th scope="col">Middle 50%</th></tr></thead><tbody id="assessment-rows"></tbody></table>
+<p id="assessment-coverage"></p><p>Land records can include multiple dwellings. Mortgage debt is outside these figures.</p>
+<p id="assessment-levy" hidden>In other zones, strata qualify when their published levy matches the 2021 residential rate to within one cent, allowing for the additional school tax. Different taxable bases can exclude some residential properties. <a href="https://vancouver.ca/files/cov/2021-property-tax-rates.pdf">2021 tax rates</a></p>
+<p><a href="https://opendata.vancouver.ca/explore/assets/property-tax-report/">Assessment roll</a> · <a href="https://opendata.vancouver.ca/explore/assets/property-parcel-polygons/">Parcel data</a></p>
+</details></details>
+<details id="validation"><summary>Test household income and commuting against the census</summary>
+<label>Held-out measure<select id="validation-measure"><option value="commute">Usual commute mode</option><option value="income">Annual household income</option></select></label>
+<p id="validation-result" role="status"></p>
+<table><thead><tr><th>Category</th><th>Model</th><th>Census</th><th>Metro donors</th></tr></thead><tbody id="validation-rows"></tbody></table>
+<p id="validation-universe"></p><p id="validation-coverage"></p>
+<p>The model fits household size, age, tenure, employment and individual income. These two distributions were held out. The metro comparison uses the Vancouver donor households with their original weights. The census and donors share a 2021 source. <a href="https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E">Census Profile</a></p></details>
+<details><summary>Largest held-out differences</summary><p>Employment and income by gender, ranked by absolute percentage-point gap within the selected geography.</p><div id="errors"></div></details>
+<details><summary>Sources and denominators</summary><p>Resident and occupied-dwelling counts use the 2021 Census at dissemination-area level. Intact households come from the Vancouver metropolitan hierarchical census sample. Age shares use all residents. Tenure and size use private households. Income and labour use private-household residents aged 15 or older. Income is individual total income for 2020. Employment and high income by gender are held out of fitting. Rows with unavailable or empty census denominators are omitted from both sides of aggregate comparisons.</p>
+<p>Weekdays run from 04:00 to 04:00. Adults draw intact urban BC weekday training diaries from the 2022 Time Use Survey. Children use illustrative school or home-care schedules. Missing household or economic data remain visible.</p></details></section>
+<section id="household"><h2>Inspect a household</h2><p id="hint">Choose a neighbourhood to inspect its residents.</p>
+<div id="inspector" hidden><label>Dissemination area<select id="roster-da"></select></label>
+<div class="pagers"><label>Household number<input type="number" id="home-id" min="1"></label>
+<label>Resident number<input type="number" id="resident-id" min="1"></label></div>
+<p id="identity"></p><details id="household-costs" hidden><summary>Household housing and income</summary><p id="household-cost-estimate"></p></details>
+<div id="members"></div><h3 id="person-title"></h3><p id="attributes"></p>
+<p id="now"></p><a id="city-day-link" href="cityday.html">Follow on the city map</a><details id="plan"><summary>Full weekday</summary><p id="basis"></p><table><thead><tr><th>Starts</th><th>Activity</th><th>Location</th></tr></thead><tbody id="episodes"></tbody></table></details></div></section></section>
+</main><script src="lab/atlas.js" type="module"></script></body></html>

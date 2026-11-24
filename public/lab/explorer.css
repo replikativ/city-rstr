@@ -1,0 +1,131 @@
+:root {
+  color-scheme: dark;
+  --ink: #edf1ed;
+  --muted: #b2bdb8;
+  --rail: #394540;
+  --surface: #19221f;
+  --accent: #9ad7af;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box }
+[hidden], .static-export .live-only { display: none !important }
+body { margin: 0; color: var(--ink); background: #111815; font: 14px/1.5 'Inter', system-ui, sans-serif }
+a { color: var(--accent); text-underline-offset: .2em }
+button, select, input { font: inherit }
+button, select, input:not([type=range]):not([type=checkbox]) { background: var(--surface); color: var(--ink); border: 1px solid var(--rail); border-radius: 4px; padding: .48rem .65rem }
+button, select, summary { cursor: pointer }
+button:hover, select:hover { border-color: var(--muted) }
+button:disabled { opacity: .5; cursor: default }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+input { accent-color: var(--accent) }
+.masthead { height: 56px; padding: 0 24px; border-bottom: 1px solid var(--rail); display: flex; align-items: center; gap: 20px }
+.wordmark { color: var(--ink); text-decoration: none; font: bold 22px var(--mono); letter-spacing: -2px }
+.wordmark span { color: #99b8e4 }
+.evidence-link { margin-left: auto }
+.replay-masthead .evidence-link { margin-left: 0 }
+.replay-masthead .replay-menu-button { margin-left: auto; min-height: 44px; white-space: nowrap; border-radius: 2px }
+.workspace { display: grid; grid-template-columns: clamp(240px, 22vw, 330px) 1fr; height: calc(100dvh - 56px); min-height: 460px }
+#city-tools { overflow-y: auto; padding: 24px 20px; scrollbar-width: thin }
+h1 { margin: 0 0 18px; font-size: 30px; font-weight: 550; letter-spacing: -.05em }
+h2 { font-size: 20px } h3 { font-size: 15px }
+#city-tools label:not(.overlay-option), legend, .section-label, .overlay-group { display: block; color: var(--muted); font: 12px var(--mono); margin: 16px 0 7px }
+#city-tools select, #city-tools input:not([type=checkbox]) { width: 100% }
+#city-tools fieldset { margin: 20px 0; padding: 0; border: 0 }
+#view-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 4px }
+.view-button { text-align: left; font-size: 13px }
+.view-button[aria-pressed=true], #camera[aria-pressed=true] { border-color: var(--accent); color: var(--accent) }
+#scenario-question, .hint, small { color: var(--muted); font-size: 12px }
+#scenario-question:empty { display: none }
+summary { padding: 9px 0; font-size: 13px }
+#city-tools details { border-top: 1px solid var(--rail) }
+.overlay-option { display: flex; align-items: start; gap: 7px; padding: 5px 0 }
+.overlay-option small { display: block }
+.map-stage { position: relative; isolation: isolate; min-width: 0; overflow: hidden; background: #dcdfd9 }
+#lab-map { position: absolute; inset: 0; z-index: -1 }
+.map-controls, .selection, #map-warning, .map-legend { background: #17201dfa; border: 1px solid var(--rail); border-radius: 5px }
+.map-controls { position: absolute; top: 14px; left: 14px; display: flex; padding: 3px; gap: 3px }
+#map-warning, .selection { position: absolute; top: 66px; left: 14px; padding: 12px; max-width: calc(100% - 28px) }
+.selection { z-index: 3; width: 330px; max-height: 45%; overflow: auto }
+.selection button:first-child { float: right }
+#status { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 45%; background: var(--surface); padding: 5px 10px; font-size: 12px }
+#status:empty { display: none }
+.map-footer { position: absolute; bottom: 26px; left: 14px; width: min(560px, calc(100% - 28px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; pointer-events: none }
+.map-footer > * { pointer-events: auto }
+.map-legend { justify-self: start; padding: 0 12px; max-height: 24vh; overflow: auto }
+.map-key { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 12px/1.5 var(--mono) }
+.map-caption, .map-credits { font-size: 11px }
+.map-credits { justify-self: start; background: #f2f2eae8; color: #29332b; padding: 1px 4px }
+.map-credits a { color: inherit }
+.replay-clock { background: #17201dfa; border: 1px solid var(--rail); border-radius: 2px; padding: 7px 9px }
+.replay-time-row { display: grid; grid-template-columns: minmax(4.2rem,auto) auto minmax(30px,1fr) auto; align-items: center; gap: 8px }
+.replay-time-row output { font: 16px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+.replay-time-row input { min-width: 0; width: 100%; margin: 0 }
+.replay-clock button, .replay-time-row select { padding: .32rem .48rem; border-radius: 2px; font-size: 12px }
+.replay-steps, .time-options { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px }
+.replay-steps { margin-top: 6px }
+.clock-settings summary { font-size: 11px; color: var(--muted) }
+dialog { width: min(740px, 96vw); max-height: 88dvh; background: var(--surface); color: var(--ink); padding: 0 20px 20px; border: 1px solid var(--rail); border-radius: 6px; overflow: auto }
+dialog::backdrop { background: #07110c99 }
+dialog header, dialog nav { display: flex; align-items: center; gap: 16px; flex-wrap: wrap }
+dialog header { justify-content: space-between; position: sticky; top: 0; background: var(--surface); z-index: 1 }
+dialog nav { border-bottom: 1px solid var(--rail); padding-bottom: 12px }
+dialog [id], dialog [data-detail] { scroll-margin-top: 70px }
+.replay-menu { width: min(550px, calc(100vw - 20px)); border-radius: 2px; max-height: min(620px, 88dvh) }
+.replay-menu h2 { margin: 14px 0 }
+.replay-menu label { margin-right: 8px }
+.replay-list { margin: 14px 0 0; padding: 0; list-style: none }
+.replay-list li { border-top: 1px solid var(--rail) }
+.replay-list a { display: grid; gap: 2px; padding: 8px 6px; min-height: 44px; text-decoration: none }
+.replay-list a:hover, .replay-list a:focus-visible { background: #23312b }
+.replay-list span, .replay-loading { font-size: 13px; color: var(--muted) }
+.city-section { border-bottom: 1px solid var(--rail); padding: 12px 0 }
+.city-chart { width: 100%; height: auto }
+svg.city-chart { background: #f4f4ee }
+table { width: 100%; border-collapse: collapse; font: 12px/1.5 var(--mono) }
+td, th { text-align: left; overflow-wrap: anywhere; border-bottom: 1px solid var(--rail); padding: 5px }
+#city-data-status { overflow-wrap: anywhere }
+@media (max-width: 700px) {
+  .masthead { gap: 12px; padding: 0 12px }
+  .replay-masthead { gap: 8px; font-size: 12px }
+  .replay-masthead > span { display: none }
+  .workspace { display: flex; flex-direction: column; height: auto }
+  .map-stage { order: -1; height: 60dvh; min-height: 360px }
+  #city-tools { overflow: visible; padding: 16px }
+  .map-footer { bottom: 20px; left: 8px; width: calc(100% - 16px) }
+  #status { top: 65px; left: 14px; transform: none; max-width: calc(100% - 28px) }
+}
+@media (pointer: coarse) {
+  .replay-clock button, .replay-time-row select { min-height: 44px }
+}
+#calibration-link { display: inline-block; margin: -3px 0 16px; font-size: 12px }
+
+#scenario-key { display: flex; gap: 14px; font-size: 12px; color: var(--muted) }
+#scenario-key span::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 5px; background: #6fc49a }
+#scenario-key span + span::before { background: #f28d7c }
+
+.coverage-control{display:block;margin:0 0 12px;color:var(--muted);font-size:12px}.coverage-control select{display:block;width:100%;margin-top:4px}
+
+.run-library { max-width: 44rem; margin: 2.5rem auto; padding: 0 1.25rem }
+.run-library section { margin-top: 2rem }
+.run-library ul { list-style: none; padding: 0 }
+.run-library li { padding: .7rem 0; border-top: 1px solid var(--rail) }
+.run-library small { display: block; color: var(--muted); font-family: var(--mono) }
+.run-library details { margin: .65rem 0 0 }
+.run-library details label { display: block; margin: .65rem 0 }
+
+.stuttgart-stage { background: #dcdfd9 }
+.stuttgart-stage #map-warning {
+  position: static; max-width: min(30rem,100%); padding: 5px 8px; border-radius: 0; background: var(--surface);
+}
+.stuttgart-stage .selection { top: 136px; left: 8px; border-radius: 0; background: var(--surface) }
+.replay-shell #city-tools { padding: 0; overflow: visible }
+.stuttgart-stage #area-select { border-color: var(--memory-blue) }
+#city-scenarios label { display: block; font: 12px var(--mono); color: var(--branch-green); margin-bottom: 6px }
+#city-scenarios select { width: 100% }
+#city-resident { border-left: 2px solid var(--memory-blue); padding-left: 10px; margin: 10px 0 }
+#city-resident h2 { font-size: 15px; margin: 0 }
+#city-resident p { margin: 4px 0 }
+.stuttgart-stage #closure-shopper button { border-color: var(--branch-green) }
+.evidence-sections { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 10px }
+.stuttgart-stage .map-credits { width: fit-content; pointer-events: auto }
+.stuttgart-stage .map-credits a { color: inherit }

@@ -1,0 +1,33 @@
+.replay-shell.model-notes {height:auto;min-height:100dvh}
+.model-notes header nav {display:flex;align-items:center;flex-wrap:wrap;gap:.35rem 1.2rem;font:13px var(--mono)}
+.model-notes nav a[aria-current=page] {color:var(--ink);text-decoration:underline;text-underline-offset:.4em}
+.model-notes .map-link {margin-left:auto}
+.model-notes main {width:min(100%,50rem);margin:0 auto;padding:clamp(1.5rem,5vw,4rem) clamp(1rem,4vw,2rem) 4rem;font-size:1rem;line-height:1.65}
+.model-notes h1 {font-size:clamp(1.85rem,4vw,2.7rem);line-height:1.18;letter-spacing:-.045em}
+.model-notes h2 {border-top:1px solid var(--rail);padding-top:1.15rem;margin-top:2.4rem}
+.model-notes h3 {margin-top:1.8rem}
+.model-notes .lead {font-size:1.18rem;line-height:1.55}
+.model-notes .model-steps li {padding-left:.3rem;margin:.8rem 0}
+.model-notes .equation {padding:.8rem 1rem;border-left:2px solid var(--memory-blue);background:var(--surface);font-family:var(--mono)}
+.model-notes details {border-top:1px solid var(--rail);padding:.65rem 0}
+.model-notes summary {color:var(--memory-blue)}
+.model-notes .sources {padding-left:1.3rem}
+.model-notes .sources li {margin:.8rem 0}
+.model-notes .sources p {margin:.1rem 0;color:var(--muted);font-size:.92rem}
+.model-notes table {margin:1rem 0}
+.model-notes figure {--graphite:var(--muted);margin:1.4rem 0}
+.model-notes figure svg {width:100%;height:auto;display:block}
+.model-notes figcaption {font-size:.9rem;color:var(--muted)}
+.weekday-pipeline svg {font:11px var(--mono)}
+.weekday-pipeline rect {fill:none;stroke:var(--rail)}
+.weekday-pipeline text {fill:var(--ink)}
+.weekday-pipeline .measured rect {fill:var(--runtime-amber);fill-opacity:.12;stroke:var(--runtime-amber)}
+.weekday-pipeline .measured text {fill:var(--runtime-amber)}
+.weekday-pipeline .comparison rect {stroke:var(--memory-blue)}
+.weekday-pipeline .comparison text {fill:var(--memory-blue)}
+.weekday-pipeline .intervention rect {stroke:var(--branch-green)}
+.weekday-pipeline .intervention text {fill:var(--branch-green)}
+.weekday-pipeline .day rect {stroke:var(--ink)}
+.weekday-pipeline text.sub {font-size:8.5px;fill:var(--graphite)}
+.weekday-pipeline .diagram-window {overflow-x:auto}
+.model-notes .weekday-pipeline svg {min-width:550px}

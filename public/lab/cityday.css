@@ -1,0 +1,82 @@
+.day-stage{background:#182f3f}
+.pick{display:flex;align-items:center;gap:6px}
+.street-pad button{background:var(--surface);font-size:12px;min-height:34px}
+#instruction{max-width:min(40rem,100%);margin:0;background:var(--surface);padding:5px 8px}
+#instruction,#who,#location{color:var(--muted);font-size:13px}
+#instruction:empty{display:none}
+#terrain[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+.map-bar select,#transit-route{max-width:100%;min-width:0}
+#coverage{border-color:var(--memory-blue)}
+#transit-route{display:block;width:100%;margin:4px 0 8px}
+.street-pad{display:grid;gap:5px}
+.street-readout,.street-controls,.street-nearby{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.street-pad button,.street-pad a{pointer-events:auto}
+.street-pad button{touch-action:none;border-radius:0}.map-bar button:disabled{display:none}
+.day-stage:has(.street-pad:not([hidden])) #shop-activate-map{display:none}
+.street-readout{width:fit-content;max-width:100%;background:#14252ded;border:1px solid #766849;padding:4px 9px;color:#ffce78;font:12px var(--mono)}
+#street-speed{border-left:1px solid #766849;padding-left:9px;margin-left:4px;font-variant-numeric:tabular-nums}
+#street-turn{color:#ffe0a7}
+#street-camera[aria-pressed=true],#street-eye[aria-pressed=true],#resume-street{border-color:#e6bb70}
+.street-eye-view .maplibregl-canvas{cursor:grab;touch-action:none}
+.street-eye-view .maplibregl-canvas:active{cursor:grabbing}
+#nearby-count,#shop-play-map-status{background:var(--surface);color:var(--branch-green);padding:7px 9px;font-size:12px}
+#nearby-follow::before,#nearby-cycle::before,#nearby-drive::before,#nearby-scenario::before{content:"";display:inline-block;width:8px;height:8px;margin-right:5px;background:#b6e5cc}
+#nearby-cycle::before{background:#f6abfa}
+#nearby-drive::before{background:#b7ccd8}
+#nearby-scenario::before{background:#d4f3ff}
+#street-link{background:var(--surface);padding:7px 9px;font-size:12px}
+#street-shops{display:flex;align-items:center;flex-wrap:wrap;gap:5px;width:fit-content;max-width:100%;background:var(--surface);padding:4px}
+#street-shops select{pointer-events:auto;min-width:0;max-width:100%;font-size:12px}
+#street-shop-distance,#market-street-status{font-size:12px;color:var(--muted)}
+#market-street-status:not(:empty){display:block;margin-top:4px}
+#street-shops[hidden]{display:none}
+aside h2{margin:0 0 8px}.counts strong{font-family:var(--mono)}
+.counts{margin:14px 0;padding:9px 0;border-block:1px solid var(--rail)}.counts p{margin:3px 0}.counts strong{display:inline-block;min-width:85px;color:var(--accent)}
+.route-key{display:grid;gap:5px;font-size:12px;color:var(--muted)}
+.route-colours{padding-bottom:8px}.route-colours span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:4px;border-radius:50%;background:var(--dot)}
+.key-stop{--dot:#79a898}.key-walk{--dot:#92e0bc}.key-bike{--dot:#f6abfa}.key-drive{--dot:#ffce78}.key-transit{--dot:#a7caff}.key-hire{--dot:#cbb5ff}
+.pick label{min-width:0;flex:1;font-size:12px}.pick input,.pick select{width:100%}
+aside details{margin-top:10px}.resident-card p{margin:3px 0}.resident-card p:empty{display:none}.maplibregl-ctrl-attrib{max-width:95%}
+.resident-card a{font-size:13px}
+#day-evidence-panel>details{border-top:1px solid var(--rail)}
+#market{border-block:1px solid var(--rail);margin:0 0 14px}#market>summary{color:var(--branch-green);font-weight:650}
+#market-panel{padding:0 0 10px}#market-panel label{display:block;margin-top:7px;font-size:12px}
+#market-panel select,#market-panel input{display:block;width:100%}#market-panel p,#market-status{font-size:13px;margin:7px 0}
+#market-sales{display:block;color:var(--accent)}#market-inspect{margin-top:6px}
+#mobility-check,#market-customers{font-size:13px}aside details table{width:100%;border-collapse:collapse}
+aside details th,aside details td{padding:3px 5px;text-align:right;border-bottom:1px solid var(--rail)}
+aside details tr>:first-child{text-align:left}
+#road-traffic-site{display:block;max-width:100%}
+#road-traffic td{white-space:nowrap}
+#home-placement label{display:block;margin-bottom:5px}
+#home-placement select{display:block;width:100%}
+.home-placement-table{overflow:auto;max-height:23rem}
+.home-placement-table th{font-variant-numeric:tabular-nums}
+#work-transit-examples,#work-transit-steps{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+#personal-transit-examples,#personal-transit-steps{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+#recreation-examples,#recreation-stages{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+#bridge-choice-routes{display:flex;flex-wrap:wrap;gap:4px}
+#bridge-choice-routes button[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+@media(max-width:700px){
+  .day-stage:has(.street-pad:not([hidden])) .map-legend,
+  .day-stage:has(.replay-drawer:not([hidden])) .street-nearby button{display:none}
+}
+@media(max-width:480px){
+  #coverage:has(option[value="city"]:checked){width:9.5rem}
+  #region-place{width:8rem}
+}
+@media(pointer:coarse){.street-controls button{min-height:44px}}
+
+#campus-panel{font-size:13px}#campus-chart{width:100%;display:block}#campus-chart text{font:8px var(--mono);fill:var(--muted)}#campus-chart rect:has(title){cursor:pointer}.campus-legend{font-size:11px;color:var(--muted);margin-top:0}
+
+#campus-shops{font-size:13px}#visitor-controls>label{display:block;margin:6px 0}#visitor-controls select{display:block;width:100%}#visitor-now{color:var(--accent)}
+
+#work-policy{font-size:13px}#policy-controls label{display:block;margin:6px 0}#policy-controls select{display:block;width:100%}#policy-placed{color:var(--accent)}
+#demand-controls>label{display:block;margin:6px 0}
+#demand-controls select{display:block;width:100%}
+#demand-purposes button{font:inherit;padding:2px 4px;min-height:24px}
+#demand-purposes small{display:block;color:var(--muted);white-space:nowrap}
+#demand-purpose-mode-rows small{display:block;color:var(--muted)}
+#tour-controls>label{display:block;margin:6px 0}
+#tour-controls select{display:block;width:100%}
+#tour-legs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}

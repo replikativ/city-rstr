@@ -1,0 +1,260 @@
+{
+  "runs": [
+    {
+      "city": "stuttgart",
+      "release": "a798b53e1d8253ef60f8b76762a7eb0b4971efc08b820ebed06ce67a8d684253",
+      "sources": [
+        "zensus",
+        "commuters",
+        "commuter-boundaries",
+        "time-use",
+        "mid",
+        "retail",
+        "stuttgart-streets"
+      ],
+      "limitation": "The turnover fit uses district observations. Individual shop visits and the use of Canadian diary timing in Stuttgart need independent local checks."
+    },
+    {
+      "city": "vancouver",
+      "rushHourAudit": true,
+      "release": "5dc5989273e3df3c763cf85fbd2d6483e20dc6366ea8811243f6386327379182",
+      "sources": [
+        "profile",
+        "pumf",
+        "time-use",
+        "survey23",
+        "flows",
+        "transit",
+        "survey25",
+        "road-counts",
+        "skytrain-counts",
+        "powell-count",
+        "ironworkers-counts",
+        "storefronts-inventory",
+        "business-licences"
+      ],
+      "limitation": "The regional weekday covers Vancouver, UBC and the North Shore. External workers come from Metro Vancouver homes outside the resident roster. Grocery choices use the regional resident diaries and street network with a City of Vancouver storefront inventory. Visits are modeled, and store-entry observations would be needed for local validation. The East Hastings comparison credits an assumed basket at each modeled arrival. A diverted visit transfers the same amount from its baseline grocer. The cumulative figures cover walking trips and do not track later purchases displaced by a newly feasible walk."
+    }
+  ],
+  "sources": {
+    "time-use": {
+      "title": "Statistics Canada · 2022 Time Use Survey",
+      "url": "https://www150.statcan.gc.ca/n1/en/catalogue/452500012025001",
+      "role": "Diary donors",
+      "locator": "24-hour primary-activity episodes and respondent survey weights. Vancouver draws urban BC weekdays. Stuttgart transfers Canadian schedules and fits their trip frequency to German evidence.",
+      "files": {
+        "data/raw/statcan/TU_ET_2022.zip": "83649abbb7a6625024829d812cf449ba038a7c74f4aa6a29ba256cb9f63189f6"
+      }
+    },
+    "zensus": {
+      "title": "Destatis · Zensus 2022",
+      "url": "https://www.destatis.de/static/DE/zensus/gitterdaten/",
+      "role": "Population controls",
+      "locator": "100 m grid extract for the Stuttgart study area. Cell counts and age margins constrain synthetic residents.",
+      "files": {
+        "data/derived/stuttgart_zensus_100m.jsonl": "fc846d8294e966b995ab7955aa29595ab6fc5da44e5ff6a01da5094cc40814f4"
+      }
+    },
+    "mid": {
+      "title": "Mobilität in Deutschland · 2017 and 2023",
+      "url": "https://www.mobilitaet-in-deutschland.de/publikationen2023.html",
+      "role": "Travel calibration",
+      "locator": "MiD 2023 municipal small-area estimate, municipality 08111000, gives 2.861 trips per person-day. The 2017 Stuttgart Grundauswertung, P32.1, supplies relative trip rates by activity.",
+      "files": {
+        "data/raw/probes/travel_mid2017_stadt_stuttgart_grundauswertung.pdf": "57532db65b29f8fd27201d71c5dbdc03fc4d02408a3cd1e0a5fbe25170805cd3"
+      }
+    },
+    "retail": {
+      "title": "Stuttgart · Einzelhandels- und Zentrenkonzept 2024",
+      "url": "https://www.stuttgart.de/leben/stadtentwicklung/stadtplanung/stadt--und-freiraumentwicklung/einzelhandels-und-zentrenkonzept",
+      "role": "Retail calibration",
+      "locator": "Part 2, profiles of 23 Stadtbezirke. The model groups turnover into three demand classes and fits distance and attractiveness parameters. Floor area helps allocate attractiveness within each class.",
+      "files": {
+        "data/raw/stuttgart-retail/ezk2024_teil2.pdf": "055b01723d93afa966b202e5a1d919a1b7fc451624cdae9a817d1ba7a4cf1172",
+        "data/derived/stuttgart_retail_detail.json": "dbe46d8bb4a62a30107a6c7368577def5d19f51f301a07edbfea6b60fe23ce79"
+      }
+    },
+    "commuters": {
+      "title": "Bundesagentur für Arbeit · 2024 Einpendler",
+      "url": "https://statistik.arbeitsagentur.de/",
+      "role": "Commuter origins",
+      "locator": "Work municipality 08111000, socially insured employees by municipality of residence. Geographic coverage follows the employment register.",
+      "files": {
+        "data/derived/stuttgart_incommuter_origins.jsonl": "23639d241f7e09aa99b3e82862d896077c8884a945009d6f5e01a94a5fb225a9"
+      }
+    },
+    "profile": {
+      "title": "Statistics Canada · 2021 Census Profile",
+      "url": "https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E",
+      "role": "Population controls",
+      "locator": "BC dissemination areas, characteristics 1 and 5. The municipal roster reconciles residents and occupied private dwellings within Vancouver CSD 5915022.",
+      "files": {
+        "data/raw/statcan/census2021_profile_BC_DA.csv.zip": "067f53dfefece572dc9c83d24d90226cc7b7e217b90c4f724a21ffd90457f36f"
+      }
+    },
+    "pumf": {
+      "title": "Statistics Canada · 2021 Census hierarchical microdata",
+      "url": "https://www150.statcan.gc.ca/n1/en/catalogue/98M0001X2021002",
+      "role": "Household donors",
+      "locator": "CMA 933, private households. Weighted intact households supply within-household associations under local census controls.",
+      "files": {
+        "data/raw/statcan/census2021_pumf_hierarchical.zip": "b6f464b7e77ca27a58cf57080662f7bee3cdf1b9434da341ef5913abd2887042"
+      }
+    },
+    "survey23": {
+      "title": "City of Vancouver · 2023 Transportation Survey",
+      "url": "https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF",
+      "role": "Travel calibration",
+      "locator": "Table 16 and Figure 55 supply mode shares by home zone and household income. Whole-diary weights are adjusted jointly.",
+      "files": {}
+    },
+    "survey25": {
+      "title": "City of Vancouver · 2025 Transportation Survey",
+      "url": "https://vancouver.ca/files/cov/2025-transportation-survey-report.pdf",
+      "role": "Held-out comparison",
+      "locator": "The income and home-zone diary fit is compared with later mode shares across nine home zones. This checks assigned modes before route feasibility.",
+      "files": {}
+    },
+    "flows": {
+      "title": "Statistics Canada · 2021 commuting flow, table 98-10-0459-01",
+      "url": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=9810045901",
+      "role": "Commuter origins and destinations",
+      "locator": "Usual workplace and home municipalities. The incoming work cohort is additional to the resident roster.",
+      "files": {
+        "data/raw/statcan/commuting_flows_98100459.zip": "64cdc568be9451a8eb5a6c72255331f47faf5f1fb7b7babf6406f90ce9693f1c"
+      },
+      "repositoryFiles": {
+        "data/mobility/workplace-matrix-2021.csv": "7ebe3d4c6d3df721874a6c723f1b8e8e34b54363227d1f2414ac89ecec9a3929"
+      }
+    },
+    "transit": {
+      "title": "TransLink · static GTFS",
+      "url": "https://www.translink.ca/about-us/doing-business-with-translink/app-developer-resources/gtfs",
+      "role": "Transport supply",
+      "locator": "Feed 26SEP_20260909. The replay matches trips to scheduled services on 15 September 2026.",
+      "files": {
+        "data/raw/probes/transit_translink_gtfs_static.zip": "a57e2fbb04aa24e6282cd2e3dedffd224c0da2ec1566b92cc350667bff22eedb"
+      }
+    },
+    "commuter-boundaries": {
+      "title": "© BKG 2026 · VG250-EW municipal boundaries (dl-de/by-2-0)",
+      "url": "https://sg.geodatenzentrum.de/web_public/gdz/datenquellen/datenquellen_vg_nuts.pdf",
+      "role": "Commuter origin geography",
+      "locator": "Municipal polygons around Stuttgart from BKG, joined by AGS to 2024 BA inbound commuter counts. The layer covers the mapped vicinity. Counts describe employment relationships in the register.",
+      "request": "https://sgx.geodatenzentrum.de/wfs_vg250-ew?service=WFS&version=2.0.0&request=GetFeature&typeNames=vg250-ew%3Avg250_gem&srsName=CRS%3A84&bbox=8.65,48.45,9.72,49.12,CRS%3A84&outputFormat=application%2Fjson",
+      "license": "https://www.govdata.de/dl-de/by-2-0",
+      "repositoryFiles": {
+        "resources/city/stuttgart-municipalities.json": "98c38d79cc14b6733f1de725a90f8a6af9025312ca6f3d05dc0b1ee0d26244c2"
+      },
+      "files": {
+        "data/derived/stuttgart_incommuter_origins.jsonl": "23639d241f7e09aa99b3e82862d896077c8884a945009d6f5e01a94a5fb225a9"
+      }
+    },
+    "road-counts": {
+      "title": "City of Vancouver · permanent vehicle counters",
+      "url": "https://vancouver.ca/streets-transportation/traffic-count-data.aspx#permanent-count-stations",
+      "role": "Directional bridge crossings",
+      "locator": "Monthly average weekday volumes by hour for Burrard, Granville, Cambie and Lions Gate. The reference month varies by direction and counter.",
+      "files": {
+        "data/raw/probes/counts_vancouver_arcgis_TCSPermanentCounts_sample.json": "db59c6fb255411fc8808852b3ed3c9fe321e36d62616b3326b1fcefbccf9dcfc"
+      }
+    },
+    "skytrain-counts": {
+      "title": "TransLink · 2025 Transit Service Performance Review",
+      "url": "https://www.translink.ca/tspr",
+      "role": "Station boardings and alightings",
+      "locator": "Average Monday–Friday station counts by local hour at six Downtown stations.",
+      "files": {
+        "data/raw/probes/transit_translink_tspr2025_skytrainavgalightsbrdgs_yearstationdaytypehourly.csv": "e6e5daa7239ffdf58596f4782e55670d35d40a0a26dfe7764dc25516b12cbbd0"
+      }
+    },
+    "powell-count": {
+      "title": "City of Vancouver · Powell Street bicycle count",
+      "url": "https://vancouver.ca/streets-transportation/traffic-count-data.aspx",
+      "role": "Cycling on the east approach",
+      "locator": "700 block of Powell Street, hourly counts on 31 January 2024.",
+      "files": {
+        "data/raw/probes/counts_vancouver_midblock_700_powell_2024-01-31.xlsx": "87579cf310591c6ec443683cdbd15b259a47d43675b79fde635572663377a88b"
+      }
+    },
+    "ironworkers-counts": {
+      "title": "British Columbia · Ironworkers Memorial Bridge traffic counts",
+      "url": "https://tradas.th.gov.bc.ca/reports/AllYears/2025/03/MV03/MV03P_Second%20Narrows%20P-15-2EW%20-%20NY3-2025.csv",
+      "role": "Directional vehicle counts across Burrard Inlet",
+      "locator": "Station P-15-2EW, March 2025. Hourly weekday means from daily eastbound and westbound counts.",
+      "repositoryFiles": {
+        "data/mobility/ironworkers-2025-03.csv": "4ec082757c8d9a6e6ec3be818364cd07d3d2d020b48310c8cbcaf0ad36447f86"
+      },
+      "files": {}
+    },
+    "stuttgart-streets": {
+      "title": "OpenStreetMap contributors · Stuttgart highway geometry and tags",
+      "url": "https://www.openstreetmap.org/copyright",
+      "role": "Street geometry, road classes, one-way restrictions and tagged speed limits",
+      "locator": "Archived Overpass highway ways in the Stuttgart study area. Missing speeds use the assumptions in the street timing notes.",
+      "files": {
+        "data/raw/osm-overpass/stuttgart_highways.json": "724e9dccdb4632430035aac25590e40375baeb50955b5bb0fda1fbcbaf2e4f21"
+      }
+    },
+    "storefronts-inventory": {
+      "title": "City of Vancouver · storefronts inventory",
+      "url": "https://opendata.vancouver.ca/explore/dataset/storefronts-inventory/",
+      "role": "Candidate opening sites",
+      "locator": "Surveyed vacant storefronts in the City of Vancouver, 2025. The East Hastings opening is a hypothetical use of a recorded address.",
+      "files": {
+        "data/raw/vancouver-ods/07267960f35cc42210df8670b8c3c22642affbbaf09a90366e421b5cb6fb2937.json": "fae1f17310cd2b40ecca6a1c82faf5f0acf80ca2e547e63fd5d15620f0879bf5",
+        "data/raw/vancouver-ods/0e080f74874aa9bf14747f1ff836c59bab8b4416663fdbef836877d5f04c4a68.json": "efde8f0ac9be72175c11018de4a91662bf7de06e8ced41d76dee9459fd06fd6c",
+        "data/raw/vancouver-ods/1c2ec109090aa514d8fc041dacb543b32093fef41dcbc346da49aa0d979f5bb0.json": "90a42d16a0d267ff6117025bec5f693b7de5a4bdbc1d297dc910a4b9e53225a2",
+        "data/raw/vancouver-ods/20c05248d67c285ad06c6a2e9baea2e979b24142fb7bc2cb59ecf0ee406a4fba.json": "065161c854ffc5318e8e33fa6156c3012f09ec3226326f4e21addfe8f4ee73fe",
+        "data/raw/vancouver-ods/224c41870aaf1c8128c02d4aedd55f8aa3028c33192ccda72bcd209d76f59e41.json": "ebf5a05684feefdcea6f5f739f251428e1ecefcdbe9cb7040d6de546b5a95d5f",
+        "data/raw/vancouver-ods/2c9cadd993be8f3fb6034d867862dcb8722dc0495ea8daa96de47e6b0e655b06.json": "2a6671d6e3a4f1bece630042ad9c116d7d80c4149ba24db98d7b9a75c2c37678",
+        "data/raw/vancouver-ods/2e0b743033f061db794a89d67c5d2c33b3e15b685b1c2745d6fa308e14c8bf40.json": "b0e5f553a293c206d468b220908184b8400759a6b7aa5d53eb75fcd23d0e3650",
+        "data/raw/vancouver-ods/50b847ed45f8b0ec2c0f78a594baea93500dd819ec608b3e19b68bb3502bdb7f.json": "57c730332ce89356a38c6e3fb3c6e6fb0b3d7c533b188938629b0c892cba9d41",
+        "data/raw/vancouver-ods/63dd8f75c0577dd3fa32fd337d71ae55803c9beae8ada425ca1af870d75f7721.json": "75a772cdc1577140c84bfce3a149a84d9dfb6bda6a5c5b9e4ff3c5dca71fc7b2",
+        "data/raw/vancouver-ods/668442daceb15213e0039a7e2f5437961edd17edbf0923b69b9ca289e39c9a27.json": "1e2c2aa02fecfce230f5647130bbb1f1271e64930fbbf8fcba6e35032db91db0",
+        "data/raw/vancouver-ods/8488920311e06295cf5a2b4806f7f1df854ace9e49ed5bd16c6d62de44e0b063.json": "5e9389e2a460600d7e6698de3dfa9af56f1721306e05e899ce6c06d285daa35f",
+        "data/raw/vancouver-ods/8ea366aa547c4269fdb165d4b7198974382bec45f22c2eb16091e8d4d8941eae.json": "2446e07f2df862c8614e6e666e95a426de98dd47dd66b0790cc65fa1cd5fa723",
+        "data/raw/vancouver-ods/98affda6d1ae4f0dc796bcc76d070d2cf615e7db78f805887338f03b825c3cc5.json": "c7190bd7292000c9db4effcda07fdadfc7c9b0a08c6d2d88a7d794f90b85cf39",
+        "data/raw/vancouver-ods/9efa9e839fe4fe1e4cd66ef438bf332dd8c41d61d51704ca4736c0d6b2620a49.json": "bbcc97bf43b9e960dc7e35ec8ab4760ba0519b68bb7e0ffee3c32621b8487902",
+        "data/raw/vancouver-ods/aa16c84e2046298675d45453a0acaa4b2e16876b6349f3782fb95b134e16bab3.json": "a193128d3b618880b3a16f319ac93768e3c3a2a246fe61306dd4269341cc0cf7",
+        "data/raw/vancouver-ods/bff7c81efd75dc262ac37de8ea66135109c5b77fbe3172b75a8396536c9bcb52.json": "54320ac6ef94a3792714cfa68b6f116d6b9a871cdc01f32709d2a09f67f026a7",
+        "data/raw/vancouver-ods/c332684c5973c4106b10eeb2b624177483975ca11a4958b74b93722d4f4b4eff.json": "a157a57cae122748c7df1c5b8fc207656eb326e3436ebd85f22949ee680a75d0",
+        "data/raw/vancouver-ods/c4412937989414a1eb9610ee62697b58b312cbeb92c28712c38e09d88f60b34e.json": "6b8e1abdf048eb0848a14bfcee2f04d958d81ff2cd52eda481793a2fdf8741b3",
+        "data/raw/vancouver-ods/c7e8f7300a1217c8441501402710fd25503c80d5dc6f01fcb4be436aaac6a864.json": "7795c9674f1bc84b4bd76cefd240942bf40b207b4a0a95cd8444e48bb3c66c65",
+        "data/raw/vancouver-ods/c84aef2f47c7747a078b11e6db2eea85688fc6b7a78bd35da106f21c941b617b.json": "d9e26ffa84178e7ae47de83d74cb47afa552f52efdfa2c4031dfa1d2cc9494c7",
+        "data/raw/vancouver-ods/eef5c3a6ff4e9125ecb12eecb09060a9a8f283eeeec93f753f1823bf9bf51176.json": "d91b8afe41028d830ad768759e6a3026f3a98585e7e4e30cf306d11031591eae",
+        "data/raw/vancouver-ods/f1d40ffd3a9618fdff10e0be8a73a7c67f10bbdb02df19237eddf10890c7d243.json": "7bfd988d24ba79b06fe699482c348437a1e516a3bcbb1ba8a708b4bb02df337b"
+      }
+    },
+    "business-licences": {
+      "title": "City of Vancouver · business licences",
+      "url": "https://opendata.vancouver.ca/explore/dataset/business-licences/",
+      "role": "Incumbent grocers",
+      "locator": "Issued geocoded licences in 2025. The inventory supplies addresses and business categories for the baseline competitors.",
+      "files": {
+        "data/raw/vancouver-ods/0ddc8bf4bcfa5ac65492935eec7abb229c104de33a96784c2e4d3aa8f20ee62e.json": "ff1a1b7688b7f45f6afaf34346affe33fb366240ea8fd82d65f4fc06c1f4eb4c",
+        "data/raw/vancouver-ods/0fb428f874999d950adc01b0fa07634dd95d6d31f51966604ca7e722656482ac.json": "bb170d3220e35da389c5f93be2cb1b9a9d257df5b0d290bdfbc73b5a7a2fe271",
+        "data/raw/vancouver-ods/152acfd838d6c8466437ea96460069c23bb98fdb203eddc741e881a299a71d28.json": "c59e32dfa9dc4019f781bc92a3510805bcbbe01c9a20f43f1d3483e4eb767971",
+        "data/raw/vancouver-ods/409450f3d63a471f44ee6b6a93c6a074f5f2b0fe80d8040a552cc208dd0887c4.json": "0711ccf0bf1901fb5bf2c7807a6f7c75265db34526098c5584e8d62122a1a9ce",
+        "data/raw/vancouver-ods/433609fe9751068f95dc179d039e6edcfe689fb7b493e3de6c344058fb9f9b1b.json": "fcdd8bcf440edd378d07e74df7ab92ab799aaf741141d0ce45660f157f828b0a",
+        "data/raw/vancouver-ods/49c4d7f81368abe7a6d3e34802fa9d6d6cb13c0b6d43c5a018ad7e93567510ff.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "data/raw/vancouver-ods/548ee7ca70332721e7799afcbfd9c4094e7aa1359f19a5facc5fd699f8bf5fea.json": "18d71d1c3dc31bb81de0d63a1a66b9fcc2bc6e0cdd3508a1373e8b447b8b3f37",
+        "data/raw/vancouver-ods/62b96fd0055d5e774f485dd382e7eace91cf47ff5e44f169819af617004839d7.json": "9e78dd2d77735896261de4c103bab9b199c5f8b2c217528d305a82d776c108c2",
+        "data/raw/vancouver-ods/6d87fddddae45d7a48b8e35dc2ed23de892c517fcacc63fe80dadf5af6b618d4.json": "c2aa3587d3cdc1d260558ed1cc4050ec44876e1a54ca4f60c9a7894d494a22e9",
+        "data/raw/vancouver-ods/70d93f6d58013132cafad525b81bd1c858646d3f73f390ae9198c0809e4c1861.json": "8b28c379c7951e41e53174ea2da455b35d1316af4ccbdfbbb82fb4cd6c67f410",
+        "data/raw/vancouver-ods/77e4d7a4735f3e81e6d0d3609207995b3f12ce6cb7420f0df7e1ed6d268dc3a1.json": "08c01927b8e51f6087c19083f5badeb13bfc66d331c9aee47689cf332c113c3c",
+        "data/raw/vancouver-ods/8572de42b6b47ef3f0313bd9edca5e8540608603112919917c9a14ffe3b5a7e1.json": "ec3fcb18cd3a7e115fc42accaf3e33e6d909444cbe0b219a1a577ecd521ba3f5",
+        "data/raw/vancouver-ods/8db46658cda10687f924d316e7877490894e7fdf27911d8f6e8652002de4120d.json": "8430d211d717c1c359d58ab14f241f2b846d2ba55b9cecfebe63250b51b3ad30",
+        "data/raw/vancouver-ods/9a8707f4cbb334fcc874a496c24c9cd1b644d41235114f3d16a7c0a2fb2add4a.json": "d75cc7b602cfb421c007aad6ccf12edcabfdd07fd1567083b28bc8795371f041",
+        "data/raw/vancouver-ods/b861ee263137a5fa172b6aaa63ab0afa8f5dce458da156b0e848518397a0763b.json": "c27e3c8502f3e7ade667884febd64e7160c12300fcaaf2dba0d2aca734a3e12d",
+        "data/raw/vancouver-ods/bad5a6e2b53a06e6251effc914c95c26e40380c95db16668911861d5f16df8ac.json": "0076d77e4f8b61952e23ea7a471606209f5ea55d69a47a0bb8800b53409e6d2f",
+        "data/raw/vancouver-ods/c34288d200c140e61c19953495345b88b8c2cc6d7c7bb9204c3cce24a55899e9.json": "5422d2699a78f8a778466e71c9a233bde3a6d073166f0e38114258043ac83e3f",
+        "data/raw/vancouver-ods/e6693bf922dfe86eb45e1a1c534fd36f27d1b72fcd26abc515e78808e4463461.json": "c56071d73159307e56eafacfb8cfab2bddf4fe91b0640dd67eabe431e27fae64",
+        "data/raw/vancouver-ods/ebfcdaf0f8fc462072b47ed636fe5b7880f3a4168dfdfbc9f1bbeb771f8220bf.json": "19ab24132be52591bff203f01e83dc834f4d52d3c6caf59344eeb6d412df16f8",
+        "data/raw/vancouver-ods/f3d8040dd8cdc88abde4f451b9e577b0f574426e28a5004351b974c236612d60.json": "c774b3c3d35c078614e1fd0d93a6e942a80ed5bac928eca299b5d4f0097cd785",
+        "data/raw/vancouver-ods/f788277d5ffb0c7ffeade8f1222eaa5966b273e0da8c3db00f632136df8c324e.json": "3c5dcfe75358421698f7fc799288b86f8a5a0d2ba196b656aacfbe93b6122b25",
+        "data/raw/vancouver-ods/fc9d7697a70ba083592163ea4737b16e6d2f5aa2d4e283d65d39915830b5ed04.json": "36bfc4616949d5dbfdb9b4d049ba04c22a2c89795b96307b4bec295f94f1602f"
+      }
+    }
+  }
+}

@@ -384,16 +384,16 @@
 
 (defn- scenario-panel [sc]
   (let [n (count (or (value sc :particles) []))]
-    (str "<p><strong>" (esc (value sc :label)) "</strong> — " (esc (value sc :question)) "</p>"
+    (str "<p>" (esc (value sc :label)) "</p>"
          "<h3>The posterior the answer is drawn under</h3>"
          "<p class='hint'>" n " particles of the segmented destination model — α, β, d₀ per demand class — fitted to the published district × class turnovers. "
          "Ticks are particles on the prior's range, opacity their weight: a tight cluster is what the turnovers pinned down, a spread is what they left open.</p>"
          (particle-strips sc)
-         "<h3>Rung one — does the fitted model reproduce what was measured?</h3>"
+         "<h3>Calibration against observed turnover</h3>"
          (apply str (for [c (class-names sc)]
                       (str "<details data-detail='calibration-" (esc c) "'><summary>" (esc c) " class: posterior predictive / observed, by district</summary>"
                            (calibration-chart sc c) "</details>")))
-         "<h3>Rung two — the intervention, district by district</h3>"
+         "<h3 id='district-effects'>District revenue changes</h3>"
          "<p class='hint'>Scenario minus baseline under each particle, so the band is the posterior over the effect itself. Resident money only; commuter and visitor spend are not moved here.</p>"
          (district-delta-chart sc)
          "<h3>Venues that move most</h3>"
@@ -408,7 +408,7 @@
    listeners or watches."
   [element {:keys [city area payloads statuses hour month]}]
   (when element
-    (let [area-name (or (value area :name) (value area :area) (value area :eid) "No area selected")
+    (let [area-name (or (value area :name) (value area :area) (value area :eid) "Whole city")
           ;; innerHTML replacement is intentional (the renderer owns this
           ;; element), but playback must not reset the reader's disclosures.
           detail-state (into {}
@@ -433,14 +433,14 @@
           ;; with a scenario selected the column tells that story first and
           ;; folds the run's own evidence beneath it; without one, the run
           ;; evidence leads and the scenario section only says none is selected
-          html (str "<div class='city-panels'><header class='city-section'><div class='section-label'>CITY EVIDENCE</div><h1>"
+          html (str "<div class='city-panels'><div class='city-section'><h2>"
                     (esc (str (str/capitalize (name (or city :city))) " · " area-name))
-                    "</h1><p class='hint'>Observed records and published simulation outputs are labelled separately throughout.</p></header>"
+                    "</h2></div>"
                     (if scenario?
                       (str scenario-section
                            "<details data-detail='run-evidence' class='city-section'><summary>the run beneath the scenario: provenance, visits, firms, scorecard, aggregates</summary>"
                            run-sections "</details>")
-                      (str run-sections scenario-section))
+                      (str run-sections (when (#{:loading :error} (get-in statuses [:scenario :status])) scenario-section)))
                     "</div>")]
       (set! (.-innerHTML element) html)
       (doseq [d (array-seq (.querySelectorAll element "details[data-detail]"))

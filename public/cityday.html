@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A Vancouver weekday · City laboratory</title><link rel="stylesheet" href="lab/explorer.css">
+<link rel="stylesheet" href="lab/replay-shell.css"><link rel="stylesheet" href="lab/cityday.css"></head><body class="replay-shell">
+<header class="masthead replay-masthead"><a class="wordmark" href="https://simm.is">simm<span>is</span></a>
+<label class="replay-city-picker" hidden>City <select data-city-selector><option value="stuttgart">Stuttgart</option><option value="vancouver" selected>Vancouver</option></select></label>
+<output id="city-switch-status" role="status" hidden></output><a href="runs.html?city=vancouver">City runs</a>
+<a href="population.html">Population atlas</a><button class="replay-menu-button" type="button" data-replay-menu="vancouver">Choose a scenario</button></header>
+<main class="replay-main"><header class="replay-titlebar"><h1 id="city-name">Vancouver</h1><output id="status" class="replay-status" role="status">Loading weekday…</output>
+<button id="inspector-toggle" data-replay-toggle type="button" aria-controls="day-panel" aria-expanded="false">Inspector</button></header>
+<section class="replay-stage day-stage" aria-label="Vancouver weekday replay"><div id="map" class="replay-map" aria-label="Vancouver day map"></div>
+<div class="replay-tools map-tools">
+<div class="replay-map-bar map-bar"><button id="overview">Recenter</button><button id="camera" type="button" aria-pressed="false">Tilt map</button><select id="region-place" aria-label="Go to a place" hidden><option value="">Go to a place</option><option value="downtown">Downtown</option><option value="commercial">Commercial Drive</option><optgroup id="regional-places" label="UBC and North Shore"><option value="ubc">UBC campus</option><option value="lonsdale">Lonsdale Quay · North Vancouver City</option><option value="lynn">Lynn Valley · North Vancouver District</option><option value="ambleside">Ambleside · West Vancouver</option><option value="horseshoe">Horseshoe Bay · West Vancouver</option></optgroup></select><button id="follow" disabled>Follow resident</button><button id="drive" disabled>Drive here</button><button id="bike" hidden disabled>Cycle here</button><button id="walk" disabled>Walk here</button><button id="resume-street" hidden>Return to street</button><button id="terrain" aria-pressed="false" hidden>Terrain</button><button id="shop-play-map" hidden>Play a shop opening</button><button id="shop-activate-map" hidden>Open shop now</button><output id="shop-play-map-status" hidden></output></div>
+<p id="instruction" aria-live="polite"></p>
+<section class="replay-result" data-replay-result aria-label="Scenario result" hidden>
+<a href="#market"><span></span><strong></strong><small></small></a></section></div>
+<aside id="day-panel" class="replay-drawer" data-replay-inspector aria-label="Weekday inspector" hidden>
+<div id="day-inspector"><nav class="replay-tabs" aria-label="Weekday inspector">
+<button type="button" data-replay-tab="map" aria-controls="day-map-panel" aria-pressed="true">Map</button><button type="button" data-replay-tab="scenarios" aria-controls="day-scenario-panel" aria-pressed="false">Scenarios</button><button type="button" data-replay-tab="evidence" aria-controls="day-evidence-panel" aria-pressed="false">Evidence</button></nav>
+<div class="counts"><p><strong id="moving">—</strong> travelling</p><p><strong id="placed">—</strong> at a modelled place</p><p><strong id="missing">—</strong> location unresolved</p></div>
+<div class="resident-card"><p id="who"></p><output id="tour-person-access"></output><p id="activity"></p><p id="location"></p><a id="atlas" href="population.html">Inspect household and diary</a></div>
+<section id="day-map-panel" data-replay-section="map" aria-label="Map controls">
+<label>Study area <select id="coverage" aria-label="Study area"><option value="city">City of Vancouver</option><option value="region">Vancouver, UBC &amp; North Shore</option></select></label>
+<div class="route-key"><label><input id="route-trails" type="checkbox" checked> Show trip trails</label>
+
+<output id="route-status"></output></div>
+<p id="road-traffic-active" hidden>Road timing uses <a href="#road-traffic">observed corridors</a>.</p>
+<details id="building-heights-panel" hidden><summary>Building heights</summary>
+<label><input id="lidar-heights" type="checkbox" checked> Use LiDAR estimates</label>
+<label id="lidar-sections-label" hidden><input id="lidar-sections" type="checkbox" checked> Show separate roof levels</label>
+<p id="building-heights-status" role="status"></p><a id="building-heights-source" hidden>LidarBC survey</a></details>
+<details><summary>Choose a resident</summary><div class="pick"><label>Home census area<select id="da"></select></label><label>Resident number<input type="number" min="1" id="person"></label></div></details>
+<p id="outside-now" hidden></p></section><section id="day-scenario-panel" data-replay-section="scenarios" aria-label="Weekday scenarios" hidden>
+<details id="market"><summary>Open a grocery shop</summary><p id="market-status" role="status">Loading storefronts…</p>
+<details id="market-saved"><summary>Saved shop openings</summary>
+<button id="save-opening" disabled>Save this opening</button><p id="saved-status" role="status"></p>
+<div id="saved-list" hidden><label>Saved opening<select id="saved-opening"></select></label>
+<p id="saved-result"></p><a id="saved-replay">Replay this opening</a>
+<label id="saved-compare-label" hidden>Compare with<select id="saved-compare"></select></label><p id="saved-difference"></p>
+<label id="saved-group-label" hidden>Show shoppers<select id="saved-group"><option value="all">Selected opening</option><option value="shared">Both openings</option><option value="first">Selected opening only</option><option value="second">Comparison opening only</option></select></label>
+<label id="saved-person-label" hidden>Shopper<select id="saved-person"></select></label><a id="saved-follow" hidden>Follow this visit</a></div></details>
+<div id="market-panel" hidden><label>Storefront neighbourhood<select id="market-area"></select></label>
+<label>Scenario<select id="market-site"></select></label>
+<label hidden>Travel scenario<select id="market-travel"><option value="diary">Recorded walking and cycling</option><option value="access">Add cyclists with survey-based access</option><option value="ride">Add cyclists with universal access</option></select></label>
+<label hidden><input id="market-local-walk" type="checkbox"> Walk to a local grocer when the driving diary allows</label>
+<label hidden>Grocery purchase assumption<select id="market-purchase"><option value="fixed">40% of goods stops</option><option value="bc2010">Urban BC grocery shares · 2010</option></select></label>
+<p id="market-purchase-source" hidden><span id="purchase-calibration"></span> <a href="https://www150.statcan.gc.ca/n1/pub/45-25-0001/index-eng.htm">Statistics Canada time-use files</a></p>
+<button id="market-locate" hidden>View storefront</button>
+<button id="market-street" type="button" hidden>Visit from street</button><output id="market-street-status" role="status"></output>
+<label>New shop hours<select id="market-hours"><option value="full">08:00–20:00</option><option value="short">10:00–18:00</option><option value="24h">24 hours</option><option value="custom">Custom hours</option></select></label>
+<div id="market-custom" hidden><label>Opens<input id="market-opens" type="time" value="08:00"></label>
+<label>Closes<input id="market-closes" type="time" value="20:00"></label></div>
+<div id="shop-play" hidden>
+<button id="shop-activate" disabled>Open now</button>
+<button id="shop-reset" hidden>Reset opening</button>
+<button id="shop-compare">End play and compare hours</button>
+<p id="shop-play-status" role="status"></p>
+<ul id="shop-openings" aria-label="Storefront openings" hidden></ul>
+</div>
+<p id="market-result"></p><p id="market-travel-mix" hidden></p><p id="market-compare"></p><p id="market-coverage" hidden></p>
+<p id="market-clock-pair" hidden><a id="market-original-clock">Replay this opening on the original clock</a></p>
+<p id="market-demand-pair" hidden><a id="market-demand-link"></a></p>
+<p id="market-demand-results" hidden></p>
+<p id="market-evening-evidence" hidden></p>
+<output id="market-now" hidden></output><button id="market-next" hidden>Follow next arrival</button>
+<p id="market-walk-legend" hidden>Blue dots show shoppers travelling to or from the proposed shops. Select one to follow their day.</p>
+<label>Assumed CAD per visit <input id="market-basket" type="number" min="0" step="0.01" placeholder="Optional"></label><output id="market-sales"></output>
+<div id="market-examples" hidden><label>Changed shopping occasion<select id="market-person"></select></label><button id="market-inspect">Follow this visit</button>
+<a id="market-reference" target="_blank" rel="noopener" hidden>Replay with existing grocers (new tab)</a><p id="market-reason"></p></div>
+<details id="market-customers" hidden><summary>Who would visit?</summary><p id="market-origins"></p><p id="market-diaries" hidden></p>
+<table><thead><tr><th>2020 personal income</th><th>Shop visits</th><th>Located city occasions</th></tr></thead><tbody id="market-income"></tbody></table>
+<p>Each visit inherits the synthetic shopper’s census income band. One person can make multiple visits.</p></details>
+<details id="household-market"><summary>Household food budgets within walking distance</summary>
+<label>Walk from home<select id="household-radius"><option value="400">5 minutes</option><option value="800" selected>10 minutes</option><option value="1200">15 minutes</option></select></label>
+<p id="household-reach" role="status"></p><p id="household-access"></p>
+<label>Share of annual store-food budget spent at the nearest walkable grocer (%)<input id="household-share" type="number" min="0" max="100" step="any" value="1"></label>
+<output id="household-spend" aria-live="polite"></output>
+<details id="household-housing" hidden><summary>How shelter costs affect food budgets</summary>
+<p id="household-housing-status" role="status"></p>
+<div id="household-housing-results" hidden><label>Increase in tenant shelter costs<select id="shelter-shock"></select></label>
+<p id="household-housing-context"></p><output id="household-housing-spend" aria-live="polite"></output>
+<p>The scenario applies the increase to tenant households with a shelter cost and positive after-tax income estimate. It holds their grocery share of after-shelter income fixed and caps the reduction at the existing food budget and the added shelter cost.</p>
+<p><a id="household-housing-source">2021 Census housing data</a></p></div></details>
+<p>Budgets use 2021 BC averages by household income, in 2021 Canadian dollars. Walks start at assigned homes and use 80 metres per minute. Equal distances favour the existing grocer. Each site is a separate opening in the 2025 storefront inventory.</p>
+<p><a href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1110022301">Statistics Canada household spending survey</a></p></details>
+<details id="local-access" hidden><summary>Neighbourhood grocery access</summary>
+<label>Home neighbourhood<select id="local-area"><option value="">Whole city</option></select></label>
+<label>Network distance from census reference point<select id="local-radius"><option value="0">1 km</option><option value="1">3 km</option></select></label>
+<p id="local-counts"></p><p id="local-boundary"></p><p id="local-access-change"></p>
+<p>Can-FED measures grocery and chain grocery availability in 2024. The model routes to 2025 licensed grocers on Vancouver streets. Stores across city limits, classification and network differences can affect agreement. <a href="https://www150.statcan.gc.ca/n1/pub/13-20-0001/132000012025001-eng.htm">Statistics Canada food environment data</a></p>
+<p id="local-drivers"></p><button id="local-follow" hidden>Follow a driver’s grocery walk</button><p>Each eligible driver walks the complete home–store–home outing if both legs fit the diary and take at most 15 minutes each at 3.87 km/h. Bicycle outings selected above take priority. This full-uptake scenario measures feasible walks. A driver with no feasible walk keeps the original outing. <a href="https://vancouver.ca/files/cov/equitable-access-to-healthy-food-retail-report.pdf">City of Vancouver food access study, Appendix C</a></p></details>
+<details id="market-evidence" hidden><summary>Check shopping travel and opening hours</summary>
+<div id="shopping-shift" hidden><p id="shopping-shift-result"></p><button id="shopping-shift-apply">Use this eight-hour shift</button>
+<p>The comparison tries 96 quarter-hour starts against the same storefront and competitors. Tied schedules use the start nearest 09:00.</p></div>
+<p id="shopping-evidence-status" role="status">Loading survey comparison…</p>
+<div id="shopping-surveys" hidden><p id="shopping-volume"></p>
+<table><thead><tr><th>Arrival mode</th><th>Original</th><th>Selected</th><th>City 2019</th><th>City 2024</th></tr></thead><tbody id="shopping-modes"></tbody></table>
+<p>The City surveys cover shopping for all goods. The shop simulation selects a grocery subset and checks walking and cycling routes. <a href="https://vancouver.ca/files/cov/2019-transportation-panel-survey.pdf">2019 City survey, Figure 4-7</a> · <a href="https://vancouver.ca/files/cov/2024-transportation-snapshot.pdf">2024 City walking estimate</a></p>
+<label>Recorded travel on both sides of a purchase<select id="shopping-clock-mode"><option value="bike">Bicycle</option><option value="walk">Walking</option><option value="car-driver">Car driver</option></select></label>
+<table><thead><tr><th>2022 weekday diaries</th><th>Donors</th><th>Stops</th><th>Effective donors</th><th>Fit these hours</th></tr></thead><tbody id="shopping-clocks"></tbody></table>
+<p id="shopping-support"></p><div id="grocery-clock-panel" hidden><p>Grocery-specific stops in the 2010 survey</p>
+<table><thead><tr><th>Urban weekday sample</th><th>Goods stops</th><th>Grocery stops</th><th>Weighted grocery share</th><th>Groceries fitting hours</th></tr></thead><tbody id="grocery-clocks"></tbody></table></div><p>Each stop is an in-person goods purchase between two trips by the selected mode. A stop fits when its entire duration falls within the opening hours. Effective donors account for unequal survey weights and repeated stops by one person. A dash marks an unavailable estimate or insufficient donor support.</p></div></details>
+<details><summary>Demand and evidence</summary><p id="market-method"></p><p>Each alternative opens one shop. Existing grocers and hypothetical sites come from 2025 municipal records. Existing grocers use assumed hours of 08:00–20:00. A shopper must finish before or at closing time. All shoppers keep their diary times and their previous and next commitments. The reference trip stays in place if a grocery purchase is deferred.</p><a id="market-pedestrian-check" hidden href="#pedestrian-check">Compare the underlying weekday with City pedestrian counts</a>
+<details id="market-site-sensitivity" hidden><summary>East Hastings demand and access</summary>
+<table><thead><tr><th scope="col">Opening</th><th scope="col">Recorded diaries</th><th scope="col">With added walks</th><th scope="col">Diverted</th></tr></thead><tbody id="market-site-sensitivity-rows"></tbody></table>
+<p id="market-site-sensitivity-context"></p><p id="market-site-sensitivity-access"></p>
+<p><a id="market-site-sensitivity-source">Can-FED reference</a> · <a id="market-site-sensitivity-data">Origins, timing and diversions</a></p>
+</details>
+</details></div></details>
+<details id="voting" hidden><summary>Advance voting access</summary>
+<p id="voting-status" role="status">Loading the voting scenario…</p>
+<div id="voting-controls" hidden>
+<label id="voting-date-label" hidden>Advance date<select id="voting-date"><option value="2025-03-26">Wednesday, March 26, 2025</option><option value="2025-04-01">Tuesday, April 1, 2025</option></select></label>
+<label>Polling layout<select id="voting-layout"><option value="">Regular weekday</option><option value="hall">City Hall only</option><option value="centres">City Hall and four community centres</option></select></label>
+<label id="voting-schedule-label" hidden>Time for voting<select id="voting-schedule"><option value="recorded">Use recorded free time</option><option value="flex">Reschedule housework</option><option id="voting-on-way-option" value="on-way" hidden>Also stop on the way home</option></select></label>
+<p id="voting-method"></p>
+<table><thead><tr><th>Layout</th><th>Can make the trip</th><th>Cast a ballot</th><th>Leave before voting</th><th>Median travel to the poll and home</th></tr></thead><tbody id="voting-comparison"></tbody></table>
+<p id="voting-pair"></p>
+<p id="voting-rescheduled" hidden></p>
+<div id="voting-live" hidden><label>Voting place<select id="voting-site"></select></label> <button id="voting-locate" type="button">View voting place</button>
+<p id="voting-site-staff" hidden></p>
+<p id="voting-clock"></p>
+<button id="voting-follow-housework" type="button" hidden>Follow a rescheduled task</button>
+<button id="voting-follow-detour" type="button" hidden>Follow a stop on the way home</button>
+<div id="voting-steps" aria-label="Follow a synthetic voter" hidden><button type="button" value="0">Follow the trip there</button> <button type="button" value="1">Follow at the poll</button> <button type="button" value="2">Follow the trip home</button></div></div>
+<details><summary>Compare home neighbourhoods and residents</summary>
+<table><thead><tr><th>Home neighbourhood</th><th>Synthetic cohort</th><th>Cast at City Hall</th><th>Cast with five sites</th></tr></thead><tbody id="voting-area-rows"></tbody></table>
+<table><thead><tr><th>Age</th><th>Synthetic cohort</th><th>Cast at City Hall</th><th>Cast with five sites</th></tr></thead><tbody id="voting-age-rows"></tbody></table>
+<table><thead><tr><th>Employment</th><th>Synthetic cohort</th><th>Cast at City Hall</th><th>Cast with five sites</th></tr></thead><tbody id="voting-employment-rows"></tbody></table></details>
+<details><summary>Sources and assumptions</summary><p>The scenario uses relative neighbourhood weights from the Saturday election and a synthetic weekday for its schedules. Voters can walk, drive if their diary records driving, or use a direct scheduled transit ride. The route and the full visit must fit between existing activities. A voter may leave the line to keep their next commitment. The simulation models travel and registration.</p>
+<p id="voting-date-source" hidden>The City’s preliminary date counts sum to 7,671, seven below the final combined total. They set the size of the synthetic cohorts. The published ballot files pool both dates and give no hourly arrival or queue observations.</p>
+<p id="voting-schedule-source" hidden></p>
+<p id="voting-detour-source" hidden></p>
+<a id="voting-source">City review</a> · <a id="voting-data">Published locations</a> · <a id="voting-ballots">Official ballot account</a> · <a id="voting-daily">Reported advance turnout</a></details>
+<details id="voting-ballot-evidence" hidden><summary>Recorded ballot patterns</summary>
+<p id="voting-ballot-status" role="status"></p>
+<div id="voting-ballot-tables" hidden>
+<table><thead><tr><th>Recorded candidate marks</th><th>All ballots</th><th>Advance ballots</th></tr></thead><tbody id="voting-ballot-marks"></tbody></table>
+<table><thead><tr><th>Most common pairs citywide</th><th>All ballots</th><th>Advance ballots</th></tr></thead><tbody id="voting-ballot-pairs"></tbody></table>
+<p>Zero recorded marks can include blank or overmarked ballots. Advance ballots cover both days. The file records where ballots were counted and omits voters’ home addresses.</p>
+<a id="voting-ballot-file">Anonymous ballot CSV</a> · <a id="voting-ballot-official">Official results</a>
+</div></details>
+</div></details>
+<details id="work-policy" hidden><summary>Working from home</summary><p id="policy-status" role="status">Loading paired weekdays…</p>
+<div id="policy-controls" hidden><label>Share offered a home day<select id="policy-level"><option value="50">About half of eligible workers</option><option value="100">All eligible workers</option></select></label>
+<label>Area to compare<select id="policy-area"><option value="">All study areas</option></select></label>
+<p id="policy-summary"></p><p id="policy-placed"></p><p id="policy-moving"></p><button id="policy-example">Compare a worker</button><p id="policy-person"></p>
+<details><summary>Model and execution</summary><p>The comparison starts with the recorded weekday. Eligible residents work in business, finance or administration and make a home–work–home tour with a paid-work episode. Offered workers spend that tour at home. The baseline map follows the original resident. Area counts compare baseline → home day at the selected minute. The half-offer uses a fixed draw per person.</p><p id="policy-compute"></p></details></div></details>
+<details id="campus-shops" hidden><summary>Campus café catchments</summary>
+<p id="visitor-status" role="status">Loading café catchments…</p>
+<div id="visitor-controls" hidden><label>Café location<select id="visitor-site"></select></label>
+<label>Attendance scenario<select id="visitor-group"><option value="residents">Resident weekday</option><option value="students">Add students from Richmond and Burnaby</option><option value="employees">Add employees from Richmond, Burnaby and Surrey</option></select></label>
+<button id="visitor-locate">View café</button><p id="visitor-now"></p><p id="visitor-lunch"></p><p id="visitor-origin"></p><p id="visitor-inspect"></p><p class="campus-legend">Gold points mark buildings within reach. Violet points show external attendees farther away. Select a point to inspect it.</p>
+<details><summary>Assumptions and sources</summary><p>Counts include people at assigned campus locations within 400 m on the walking network, including connections to the street. They measure potential reach. A purchase model would also need opening hours, competitor choices and spending.</p>
+<p>Student origins use 2025/26 enrolment and a 2026 survey of 2,146 respondents. Employee origins and headcounts come from UBC’s housing studies. Each scenario adds one group from beyond the resident study area. On-site time comes from urban BC weekday diaries. Building assignments use gross floor area as a proxy for capacity.</p>
+<p id="visitor-diaries"></p><p id="visitor-sources"></p></details></div></details>
+<details id="school-escorts" hidden><summary>School drop-off and pickup</summary>
+<p id="school-status" role="status"></p>
+<div id="school-controls" hidden>
+<label><input id="school-replay" type="checkbox"> Replay school escorts</label>
+<div id="school-examples"></div>
+<div id="school-example" hidden>
+<p id="school-example-site"></p>
+<div id="school-steps" aria-label="Follow a school escort"></div>
+</div>
+<p id="school-layer-note" hidden>School escorts reserve time for the published outing, recreation and transit releases.</p>
+<details><summary>Compare school travel with the family survey</summary>
+<table><thead><tr><th>Home municipality</th><th>Trip</th><th>Mode</th><th>Students with escorts</th><th>Survey ceiling</th></tr></thead>
+<tbody id="school-rows"></tbody></table>
+<p>The survey walking share includes walking with and without an adult. The model applies the City’s shares in both North Vancouver municipalities. <a id="school-source">2021 school travel survey, Figures 4 and 5</a></p>
+</details></div></details>
+<details id="weekday-attendance" hidden><summary>Work at a usual workplace</summary>
+<p id="attendance-status" role="status"></p>
+<p id="attendance-error" role="status"></p>
+<div id="attendance-controls" hidden>
+<label><input id="attendance-replay" type="checkbox"> Replay added on-site shifts</label>
+<p id="attendance-layer-note" hidden>On-site shifts reserve time and transit space for the published activity layers.</p>
+<div id="attendance-examples"></div>
+<div id="attendance-example" hidden>
+<p id="attendance-example-workplace"></p>
+<div id="attendance-steps" aria-label="Follow the worker"></div>
+</div>
+<details><summary>Compare weekday work travel</summary>
+<table><thead><tr><th>Home municipality</th><th>Mode</th><th>Recorded</th><th>With on-site shifts</th><th>Survey scaled to model</th></tr></thead>
+<tbody id="attendance-rows"></tbody></table>
+<p>The replay counts residents with a trip to paid work. The survey also includes work-related trips. <a id="attendance-source">2025 North Shore Transportation Survey, Tables 49–52</a></p>
+</details></div></details>
+<details id="discretionary-outings" hidden><summary id="outing-heading">Add shopping and recreation outings</summary>
+<p id="outing-status" role="status">Loading discretionary outings…</p>
+<div id="outing-controls" hidden>
+<p id="outing-summary"></p>
+<label><input id="outing-replay" type="checkbox"> Replay added outings</label>
+<label id="outing-scope">Home municipality<select id="outing-area"></select></label>
+<table><caption id="outing-caption">Trips to shopping and recreation destinations</caption><thead><tr><th>Purpose</th><th>Mode</th><th>Recorded</th><th>With outings</th><th>Survey target</th><th aria-label="Example outing"></th></tr></thead><tbody id="outing-rows"></tbody></table>
+<div id="outing-example" hidden><p id="outing-example-site"></p><div id="outing-steps" aria-label="Follow each part of the outing"></div></div>
+<p>Complete outings use available time at home and return to the same address. The replay uses mapped local destinations and assumed hours. <a id="outing-source">North Shore survey, Table 7 and Figure 14</a></p>
+<details id="outing-method" hidden><summary>How the walks were fitted</summary>
+<p id="outing-model-target"></p>
+<p id="outing-donors"></p>
+<p>Participants are adults aged 20 or older with no recorded shopping trip that day. The fit distributes opportunities by neighbourhood adult population and requires a walk of at most 1.6 km in each direction. <a id="outing-timing-source">Statistics Canada time-use diaries</a></p>
+<p id="outing-market" hidden><a id="outing-market-link">Use these trips in a grocery opening</a></p>
+</details>
+<details id="outing-count-check" hidden><summary>Check against pedestrian counts</summary>
+<table><caption>Passages during each site's survey hours</caption><thead><tr><th scope="col">Intersection</th><th scope="col">Base</th><th scope="col">With outings</th><th scope="col">Observed</th></tr></thead>
+<tbody id="outing-count-rows"></tbody></table>
+<p id="outing-count-note"></p>
+</details>
+</div></details>
+<details id="eastern-outings" hidden><summary>Add errands in Burnaby and New Westminster</summary>
+<p id="eastern-outing-status" role="status">Loading eastern errands…</p>
+<div id="eastern-outing-controls" hidden>
+<label><input id="eastern-outing-replay" type="checkbox"> Replay eastern shopping and recreation trips</label>
+<p id="eastern-outing-result"></p><p id="eastern-outing-survey"></p>
+<div id="eastern-outing-examples" hidden><label>Example outing<select id="eastern-outing-example"></select></label>
+<div id="eastern-outing-steps"><button type="button" value="0">Drive there</button> <button type="button" value="1">At the destination</button> <button type="button" value="2">Drive home</button></div></div>
+<p>This upper-bound scenario fills available room under the 2023 survey totals. The survey combines modes and purposes for these destinations. Each outing needs time for both drives and the full visit. <a id="eastern-outing-source">North Shore survey, Table 11</a></p>
+</div></details>
+<details id="recreation-loops" hidden><summary id="recreation-title">Recreational walks from home</summary>
+<p id="recreation-status" role="status"></p>
+<div id="recreation-controls" hidden>
+<label><input id="recreation-replay" type="checkbox"> <span id="recreation-toggle-text">Add recreational walks</span></label>
+<p id="recreation-rate"></p>
+<p id="recreation-layer-note" hidden>The added walks use the published outing and transit releases to reserve time.</p>
+<div id="recreation-examples"></div>
+<div id="recreation-stages" aria-label="Follow each stage"></div>
+<div id="recreation-bike-counters" hidden><table><thead><tr><th>Summer count site</th><th>City daily average</th><th>Added ride passages</th></tr></thead><tbody id="recreation-crossings"></tbody></table></div>
+<details><summary>Survey and routes</summary>
+<table><caption id="recreation-caption">North Shore home-to-home walks</caption><thead><tr><th id="recreation-home-heading">Home municipality</th><th>Recorded</th><th>Routed</th><th>Added</th><th>Scenario target</th></tr></thead><tbody id="recreation-rows"></tbody></table>
+<p id="recreation-reference-rate"></p><p id="recreation-routing"></p>
+<table id="recreation-departures" hidden><caption>Outdoor-sports timing proxy</caption><thead><tr><th>Departure hour</th><th>Scenario target</th><th>Rides fitted</th></tr></thead><tbody id="recreation-departure-rows"></tbody></table>
+<p><a id="recreation-survey">2025 North Shore survey, section 5.3 and Figure 31</a> <a id="recreation-loop-source" hidden>North Shore survey, section 5.3</a> · <a id="recreation-donors">2022 Canadian Time Use Survey</a></p>
+</details></div></details>
+<details id="granville-visitors" hidden><summary>Visitors cycling to Granville Island</summary>
+<label><input id="granville-toggle" type="checkbox"> Show visitor trips</label>
+<p id="granville-sample" role="status"></p><p id="granville-now"></p>
+<label>Follow a visitor<select id="granville-guest"></select></label>
+<div id="granville-stages"><button type="button" value="0">Leave hotel</button> <button type="button" value="1">Arrive at market</button> <button type="button" value="2">Return to hotel</button></div>
+<details><summary>Counts and assumptions</summary><p id="granville-method"></p>
+<table><thead><tr><th>Count site</th><th>Modeled visitor passages</th><th>All riders per day</th></tr></thead><tbody id="granville-counts"></tbody></table>
+<p>Anderson shows inbound passages at the mapped entrance approach. The City counts cover summer days and all riders. The seawall rows include both directions. Turquoise markers show this visitor cohort.</p>
+<p><a id="granville-source-estimate">Tourist visit estimate</a> · <a id="granville-source-survey">City intercept survey</a> · <a id="granville-source-licences">Hotel licences</a> · <a id="granville-source-hours">Market hours</a> · <a id="granville-source-parking">Bike parking</a></p></details>
+</details>
+</section>
+<section id="day-evidence-panel" data-replay-section="evidence" aria-label="Model evidence" hidden>
+<details id="diary-fit" hidden><summary>Weekday diaries fitted by income</summary>
+<p id="diary-fit-summary"></p><p><a id="diary-fit-replay"></a></p><p id="diary-fit-method"></p><p id="diary-fit-schedule" hidden></p>
+<p id="diary-fit-transfers" hidden><span id="diary-fit-transfer-count"></span> <a id="diary-fit-transfer-replay"></a> <a id="diary-fit-transfer-example" hidden>Follow a connection</a></p>
+<p id="diary-fit-capacity" hidden><span id="diary-fit-capacity-count"></span> <a id="diary-fit-capacity-replay"></a></p>
+<p><a id="diary-fit-zonal-replay" hidden></a> <a id="diary-fit-source">2023 transportation survey</a></p>
+<details id="diary-zone-check" hidden><summary>Check trips by home zone</summary>
+<p id="diary-zone-error"></p><p id="diary-zone-rate"></p>
+<label>Home zone <select id="diary-zone-selector"></select></label>
+<table><thead><tr id="diary-zone-header"><th>Trip mode</th></tr></thead><tbody id="diary-zone-rows"></tbody></table>
+<p>Mode shares cover five comparable modes in the assigned diaries. The 2025 survey was held out from the fit.</p>
+<a id="diary-zone-source">2025 transportation survey, Table 14</a></details></details>
+<details id="joint-weekday" hidden><summary>Commutes and shopping on the same weekday</summary>
+<p id="joint-description">Try fitted workplaces, scheduled transit and shopping walks together.</p>
+<p><a id="joint-replay">Replay the combined weekday</a></p>
+<details id="income-trip-modes" hidden><summary>Compare travel modes by household income</summary>
+<p id="income-trip-status" role="status">Loading the travel survey comparison…</p>
+<div id="income-trip-evidence" hidden>
+<label>Annual household income <select id="income-trip-band"></select></label>
+<table><thead><tr><th scope="col">Trip mode</th><th scope="col">Original weekday</th><th scope="col">Combined weekday</th><th id="income-vehicle-header" scope="col" hidden>With vehicle access</th><th scope="col">2022 survey</th><th id="income-survey-2023-header" scope="col" hidden>2023 survey</th></tr></thead><tbody id="income-trip-rows"></tbody></table>
+<p id="income-trip-coverage"></p>
+<p>The comparison uses City of Vancouver adults in private households. Model income comes from the 2021 Census and covers 2020. Survey shares are rounded. <a id="income-trip-source">2022 survey, Figure 54</a> <a id="income-survey-2023-source" hidden>2023 survey, Figure 55</a></p>
+<p id="income-survey-2023-band-note" hidden>The 2023 chart uses a $30,000 lower bound for this bracket.</p>
+<details id="income-diary-support" hidden><summary>Time-use diary evidence</summary><p id="income-diary-description"></p><a id="income-diary-source">Statistics Canada Time Use Survey</a></details>
+</div></details>
+<details id="vehicle-access" hidden><summary>Household vehicle access</summary>
+<p id="vehicle-access-status" role="status"></p><p><a id="vehicle-access-replay"></a></p>
+<div id="vehicle-access-examples" aria-label="Follow a switched tour"></div>
+<p>Households share the vehicle assignment. The comparison uses vehicle access by income from Figure 25 and keeps every stop and time window in each switched tour. <a href="https://vancouver.ca/files/cov/2022-transportation-panel-survey.pdf">Vancouver Transportation Survey</a></p>
+</details>
+<div id="joint-transfer" hidden>
+<p id="joint-transfer-note"></p>
+<button type="button" id="joint-transfer-follow">Follow a resident changing vehicles</button>
+<p id="joint-transfer-reference" hidden><a id="joint-direct-replay">Replay with direct rides only</a></p>
+</div>
+<details id="joint-counts" hidden><summary>Pedestrian counts on this weekday</summary>
+<p id="joint-count-status" role="status">Loading intersection counts…</p>
+<div id="joint-intersections" hidden>
+<label>Survey intersection<select id="joint-site"></select></label>
+<table><thead><tr><th>Hour</th><th>Baseline weekday</th><th>Combined</th><th>Observed</th><th aria-label="Example trip"></th></tr></thead><tbody id="joint-hours"></tbody></table>
+<p>The baseline includes reconstructed short walks. The combined replay also counts compatible fitted commutes, walks associated with scheduled rides, and added shopping walks. City counts include all pedestrians. <a id="joint-count-source">City count sheet</a></p>
+<p id="joint-walk-reach" hidden></p>
+<p id="joint-commuter-walks" hidden></p>
+</div></details>
+<details id="workplace-lunch" hidden><summary>Lunch walks from workplaces</summary>
+<p id="lunch-summary"></p><p id="lunch-status" role="status"></p>
+<label><input type="checkbox" id="lunch-replay"> Add lunch walks</label>
+<button type="button" id="lunch-follow" hidden>Follow a lunch walk</button>
+<table aria-label="Pedestrian comparison with lunch walks"><thead><tr><th scope="col">Intersection</th><th scope="col">Combined weekday</th><th scope="col">With lunch walks</th><th scope="col">Observed</th></tr></thead><tbody id="lunch-count-rows"></tbody></table>
+<p>The comparison uses the same count locations and hours as the combined weekday. <a id="lunch-source">2022 Time Use Survey</a></p>
+</details></details>
+<details id="home-placement" hidden><summary>Homes by census block</summary>
+<p id="home-placement-current"></p><p id="home-placement-summary"></p>
+<p><a id="home-placement-switch">Replay census-block homes</a></p>
+<label>Home census area <select id="home-placement-da"></select></label>
+<label>Count <select id="home-placement-measure"><option value="homes">Occupied homes</option><option value="people">Residents</option></select></label>
+<button type="button" id="home-placement-view">Show blocks on map</button>
+<p id="home-placement-selection" role="status"></p>
+<div class="home-placement-table" tabindex="0"><table aria-label="Census blocks and simulated home locations">
+<thead><tr><th scope="col">Block</th><th scope="col">Census</th><th scope="col">Original</th><th scope="col">Fitted</th></tr></thead>
+<tbody id="home-placement-rows"></tbody></table></div>
+<p>Both replays use the same households, activities and non-home destinations. Individual home coordinates are synthetic. <a href="https://www150.statcan.gc.ca/n1/en/catalogue/92-151-X">Statistics Canada geographic counts</a></p>
+</details>
+<details id="road-traffic" hidden><summary>Observed driving times</summary>
+<p id="road-traffic-scope"></p>
+<label>Street section <select id="road-traffic-site"></select></label>
+<button type="button" id="road-traffic-view">Show section on map</button>
+<p id="road-traffic-hour"></p>
+<table><thead><tr><th scope="col">Direction</th><th scope="col">Free flow</th><th scope="col">With data</th></tr></thead><tbody id="road-traffic-directions"></tbody></table>
+<p><a id="road-traffic-switch">Replay with observed corridor times</a></p>
+<p>The model uses the departure hour and preserves each trip’s diary window. Street sections outside the observations use free-flow times. <a id="road-traffic-source">City speed profiles, Figure 14</a></p>
+<details id="workplace-driving" hidden><summary>Do work drives fit the diary?</summary>
+<p id="workplace-driving-scope"></p>
+<table aria-label="Workplace driving trips that fit the original diary time"><thead><tr><th scope="col">Departure time</th><th scope="col">Eligible trips</th><th scope="col">Diary addresses</th><th scope="col">Revised workplaces</th><th scope="col">Revised with corridor times</th></tr></thead><tbody id="workplace-driving-rows"></tbody></table>
+<p>The first two estimates use free-flow road speeds. The third uses the measured corridor times at the revised workplaces.</p>
+<p id="workplace-driving-example" hidden><a id="workplace-driving-follow">Follow a driver</a> <span id="workplace-driving-trip"></span></p>
+<p>The linked replay spends any time left in the diary’s travel window at the destination.</p>
+</details>
+</details>
+<details id="hired-rides" hidden><summary>Taxi and ride-hail</summary>
+<label><input type="checkbox" id="hired-replay"> Fit hired rides to the City survey</label>
+<p id="hired-summary"></p><p id="hired-counts"></p>
+<p id="hired-spread" hidden></p>
+<button id="hired-example" hidden>Follow a ride-hail passenger</button>
+<p>The scenario selects adult passenger trips with a feasible street route. Departure times and destinations stay fixed. The regional operator mix supplies an approximate taxi and ride-hail split. Each visible vehicle represents one synthetic passenger trip.</p>
+<p><a id="hired-city-source">2025 City travel survey</a> · <a id="hired-split-source">B.C. Passenger Transportation Board</a></p>
+<details id="hired-dispatch"><summary>What happens with fewer vehicles?</summary>
+<p id="dispatch-status" role="status">Loading dispatch evidence…</p>
+<div id="dispatch-controls" hidden>
+<label>Service <select id="dispatch-service"><option value="ridehail">Ride-hail</option><option value="taxi">Taxi</option></select></label>
+<table><thead><tr><th scope="col">Measure</th><th scope="col">Reference</th><th scope="col">Reduced fleet</th><th scope="col">B.C. region</th></tr></thead><tbody id="dispatch-metrics"></tbody></table>
+<p id="dispatch-clock-comparison" hidden><span id="dispatch-clock-change"></span> <a id="dispatch-original-clock">Open the original timing run</a></p>
+<p id="dispatch-hour"></p>
+<label>Example fleet <select id="dispatch-fleet"><option value="reference">Reference</option><option value="reduced">Reduced fleet</option></select></label>
+<button type="button" id="dispatch-example">Replay request</button>
+<button type="button" id="dispatch-pickup" hidden>Jump to boarding</button>
+<button type="button" id="dispatch-curb" hidden>Watch at the curb</button>
+<button type="button" id="dispatch-clear" hidden>Clear dispatch overlay</button>
+<p id="dispatch-example-info"></p><p id="dispatch-phase" role="status"></p>
+<p>Vehicles start near modeled pickups and wait at the last drop-off. The fleet runs for the full replay and the reduced case removes every fourth vehicle. The model uses free-flow streets, curb walks at 80 m/min, a 15-minute pickup limit, and each diary deadline. Dashed lines show the empty approach.</p>
+<p id="dispatch-fare"></p>
+<p>The B.C. column covers the Lower Mainland and Whistler. Waits are from September 2024. Occupancy covers January–March 2025 and sizes the peak fleet.</p>
+<p><a id="dispatch-wait-source">Wait-time report</a> · <a id="dispatch-occupancy-source">Occupancy report</a> · <a id="dispatch-fare-source">Fare report</a></p>
+</div></details>
+</details>
+<details id="downtown" hidden><summary>Rush hour in Downtown</summary>
+<label>Residents’ workplaces<select id="workplaces"><option value="city">Assigned city addresses</option><option value="census">Include census destinations outside Vancouver</option></select></label>
+<label id="commute-rule-label" hidden>Mode on direct home–work trips<select id="commute-rule"><option value="diary">Travel diary</option><option value="usual">Usual mode for external workplaces</option></select></label>
+<label>Time window<select id="downtown-window"><option value="am">07:00–09:00</option><option value="pm">16:00–18:00</option><option value="clock">Hour on the clock</option><option value="day">Whole weekday</option></select></label>
+<label>Whose trips?<select id="downtown-home"><option value="">All city residents</option><option value="combined">City residents and incoming workers</option><option value="inbound">Incoming workers only</option></select></label>
+<label id="incoming-origin" hidden>Incoming workers’ home municipality<select id="commuter-city" disabled></select></label>
+<p id="downtown-summary" role="status"></p><p id="commuter-now" hidden></p><table><thead><tr><th>Travel mode</th><th>Arriving</th><th>Leaving</th></tr></thead><tbody id="downtown-modes"></tbody></table>
+<p id="downtown-source-limit" hidden>The incoming cohort uses the census usual commute mode. Taxi and ride-hail have no separate census category. Their counts in the combined view cover residents’ diary trips only.</p>
+<p>Counts use arrival or departure at a trip endpoint in the Downtown local area. Internal trips and trips with unknown endpoints are excluded.</p>
+<details id="downtown-audit" hidden><summary>Rush-hour benchmark</summary>
+<p id="downtown-audit-error" role="status" hidden></p>
+<div id="downtown-audit-report" hidden>
+<p>Fixed published weekday. Counts are recorded at the selected bridge or stations.</p>
+<label>Count location<select id="downtown-audit-site"></select></label>
+<p id="downtown-audit-context"></p>
+<table><thead><tr><th scope="col">Window and direction</th><th scope="col">Observed</th><th scope="col">Modeled</th><th scope="col">Peak start<br>Observed → modeled</th></tr></thead><tbody id="downtown-audit-counts"></tbody></table>
+<p id="downtown-audit-peak"></p>
+<p><a id="downtown-audit-source">Count source</a> · <a id="downtown-audit-data">Hourly counts and release IDs</a></p>
+<details id="downtown-transit-audit" hidden><summary>Transit demand and bookings</summary>
+<label>Time window<select id="downtown-transit-window"><option value="arriving">Arriving 07:00–09:00</option><option value="leaving">Leaving 16:00–18:00</option></select></label>
+<label>Home area<select id="downtown-transit-origin"><option value="">All home areas</option></select></label>
+<table><thead><tr><th scope="col">Trip outcome</th><th scope="col">Residents</th><th scope="col">Incoming workers</th></tr></thead><tbody id="downtown-transit-counts"></tbody></table>
+<p>Trips cross the Downtown neighbourhood boundary at a diary or work endpoint. A booked trip can include SkyTrain anywhere along its route. The 30-minute test keeps the work shift and endpoints fixed and checks the timetable without seat limits.</p>
+<p><a id="downtown-transit-data">Hourly demand and bookings by home area</a></p>
+<details id="downtown-booking" hidden><summary>Test the commute window</summary>
+<label id="downtown-booking-choice" hidden>Comparison<select id="downtown-booking-kind"><option value="windows">Downtown commute windows</option><option value="workplaces">North Shore workplaces and timing</option></select></label>
+<table><thead><tr><th scope="col">Case</th><th scope="col">Added trips</th><th scope="col">AM exits</th><th scope="col">PM entries</th><th scope="col">Duration error</th></tr></thead><tbody id="downtown-booking-rows"></tbody></table>
+<p id="downtown-booking-context"></p>
+<p><a id="downtown-booking-data">Experiment data and reference sources</a></p>
+</details>
+</details>
+</div>
+</details>
+<details id="local-mode-panel" hidden><summary>Neighbourhood commute modes</summary>
+<label>Home neighbourhood<select id="local-mode-area"></select></label>
+<p id="local-mode-cohort"></p><table><thead><tr><th>Usual mode</th><th>Census</th><th>Original</th><th>Fitted</th></tr></thead><tbody id="local-mode-counts"></tbody></table>
+<p>These census shares include workers with a usual workplace and workers with no fixed workplace. The fit also uses the citywide mode totals for workers with an external job. The age breakdown below checks those assignments.</p>
+<p id="local-mode-distance"></p>
+<div id="worksite-comparison" hidden><p id="worksite-budget"></p><button id="worksite-trip">Compare a workplace change</button></div>
+<button id="local-mode-trip">Inspect a city commute</button> <button id="bike-mode-trip" hidden>Follow a cycling commute</button></details>
+<details id="outbound-panel" hidden><summary>Residents working outside Vancouver</summary>
+<label>Workplace municipality<select id="outbound-place"></select></label><p id="outbound-cohort"></p><button id="outbound-follow">Inspect a resident at work</button>
+<button id="commute-trip" hidden>Compare a commute</button>
+<p>The Census assignment supplies a workplace municipality. The resident’s diary supplies the commute and activity times.</p>
+<div id="outbound-road-jobs" hidden><p id="outbound-road-status"></p><p id="outbound-road-at-work" hidden></p><a id="outbound-road-link"></a></div>
+<details id="outbound-transit-work" hidden><summary>Transit to jobs outside Vancouver</summary>
+<p id="outbound-transit-status" role="status"></p><p id="outbound-transit-at-work" hidden></p><div id="outbound-transit-actions" hidden><label>Job municipality<select id="outbound-transit-city"></select></label>
+<button type="button" id="outbound-transit-follow">Follow a transit commuter</button></div>
+<p id="outbound-transit-duration" hidden><span id="outbound-transit-duration-summary"></span> <a id="outbound-transit-census">Census duration table</a></p>
+<div id="outbound-transit-timing" hidden><p id="outbound-transit-timing-summary"></p><a id="outbound-transit-timing-link"></a></div>
+<a id="outbound-transit-link"></a></details>
+<label>Daytime population by neighbourhood<select id="outbound-area"></select></label><p id="outbound-occupancy"></p>
+<label id="commute-age-label" hidden>Worker age<select id="commute-age"></select></label>
+<table><thead><tr><th>Mode</th><th>Census</th><th>Usual mode</th><th>Diary trip</th><th id="fit-column" hidden>Fitted</th></tr></thead><tbody id="outbound-modes"></tbody></table>
+<p id="outbound-mode-basis"></p><p><a href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=9810046201">Census commuting modes by destination, 2021</a></p></details>
+<details id="incoming"><summary>Inspect incoming workers</summary>
+<p id="commuter-stock" role="status"></p><label>Worker number<input id="commuter-id" disabled type="number" min="1" step="1" value="1"></label>
+<p id="commuter-person"></p><p id="commuter-shift"></p><button id="commuter-locate" disabled>View assigned workplace</button>
+<button id="commuter-follow-schedule" type="button" hidden>Follow this worker’s commute</button><p id="commuter-follow-status" role="status" hidden></p>
+<p id="commuter-method"></p><p><a href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=9810045901">Census workplace flows</a> · <a href="https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF">City travel survey, Table 22</a></p></details>
+<details open><summary>Downtown SkyTrain station check</summary><p id="downtown-stations"></p><p id="downtown-matched"></p>
+<div id="downtown-incoming-rail" hidden><p id="downtown-incoming-status" role="status"></p><button id="downtown-incoming-follow" type="button" hidden>Follow an incoming rail commuter</button>
+<p id="downtown-timing" hidden><span id="downtown-timing-status"></span> <a id="downtown-timing-link"></a></p>
+<p id="downtown-duration-check" hidden><span id="downtown-duration-status"></span> <a id="downtown-duration-source">2021 Census commute durations</a></p>
+<p id="downtown-home-fit" hidden><span id="downtown-home-fit-status"></span> <a id="downtown-home-fit-link"></a></p>
+<p id="downtown-incoming-driving" hidden></p></div>
+<p>Station totals cover boardings and alightings at six stations, including travel within Downtown. The observed counts include riders from the whole region. <a href="https://www.translink.ca/tspr">TransLink service performance review</a></p></details>
+<details id="incoming-road-crossings" hidden><summary>Road counts across Vancouver</summary>
+<label>Count location<select id="incoming-road-site"></select></label>
+<label>Direction<select id="incoming-road-direction"></select></label>
+<label id="road-vehicles-label" hidden>Vehicles<select id="road-vehicles"></select></label>
+<p id="incoming-road-count" role="status"></p>
+<p id="road-vehicle-components" hidden></p>
+<table><thead><tr><th scope="col">Hour</th><th scope="col" id="road-original">Original incoming homes</th><th scope="col" id="road-fitted">Census incoming homes</th><th scope="col" id="incoming-road-observed">Observed vehicles</th><th scope="col" aria-label="Replay a driver"></th></tr></thead><tbody id="incoming-road-hours"></tbody></table>
+<p id="incoming-road-basis"></p><p><a id="incoming-road-source">Count and location source</a></p>
+</details></details>
+<details id="bridge-traffic" hidden><summary>Vehicle counts on bridges</summary>
+<p id="bridge-traffic-status" role="status"></p>
+<div id="bridge-traffic-results" hidden>
+<label>Bridge<select id="bridge-site"></select></label>
+<label>Direction<select id="bridge-direction"></select></label>
+<label>Hours<select id="bridge-window"><option value="am">07:00–09:00</option><option value="pm">16:00–18:00</option><option value="day">All hours</option></select></label>
+<label id="bridge-scenario-label">Resident weekday<select id="bridge-scenario"></select></label>
+<p id="bridge-period"></p><p id="bridge-totals"></p>
+<button id="bridge-locate">View bridge on the map</button>
+<a id="bridge-other-coverage" hidden></a>
+<p id="bridge-workplace-pair" hidden><span id="bridge-workplace-basis"></span> <a id="bridge-workplace-link"></a></p>
+<p id="bridge-downtown-link-row" hidden><a id="bridge-downtown-link">Replay the downtown workplace fit</a></p>
+<details id="bridge-downtown-fit" hidden><summary>North Shore residents’ downtown workplaces</summary>
+<p id="bridge-downtown-summary"></p><table><thead><tr><th>Home municipality</th><th>Survey share</th><th>Municipal fit</th><th>Downtown fit</th></tr></thead><tbody id="bridge-downtown-rows"></tbody></table>
+<p>Share of workplaces in Downtown or the West End among workers assigned to Vancouver or UBC.</p>
+<button id="bridge-downtown-example">Follow an exchanged worker</button> <a id="bridge-downtown-source">2023 North Shore survey</a></details>
+<details id="bridge-eastern-fit" hidden><summary>North Shore commutes to Burnaby and New Westminster</summary>
+<table><thead><tr><th>Home municipality</th><th>Workplace</th><th>2021 usual commuters</th><th>Weekday target</th><th>Assigned</th></tr></thead><tbody id="bridge-eastern-rows"></tbody></table>
+<p>The weekday target uses relative census work flows. New workplaces must fit each worker’s recorded travel windows.</p>
+<p id="bridge-eastern-examples"></p><a id="bridge-eastern-source">Statistics Canada workplace flows</a></details>
+<p id="bridge-routing-pair" hidden><span id="bridge-route-counts"></span> <a id="bridge-routing-link"></a></p>
+<p id="bridge-highway1-pair" hidden><a id="bridge-highway1-link">Replay observed Highway 1 travel times</a></p>
+<table><thead><tr><th>Hour starting</th><th>Traffic counter</th><th>Resident drivers</th><th id="bridge-incoming">Incoming work drivers</th></tr></thead><tbody id="bridge-hours"></tbody></table>
+<details id="bridge-playback" hidden><summary>Vehicles in this replay</summary>
+<table><thead><tr><th>Vehicles crossing</th><th>Count</th><th aria-label="Example crossing"></th></tr></thead><tbody id="bridge-playback-rows"></tbody></table>
+<p id="bridge-playback-total" role="status"></p><p id="bridge-playback-method"></p></details>
+<details id="bridge-choice" hidden><summary>Could drivers use the other bridge?</summary>
+<p id="bridge-choice-status" role="status"></p>
+<div id="bridge-choice-results" hidden>
+<label>Destination <select id="bridge-choice-destination"><option value="">All modeled destinations</option></select></label>
+<p id="bridge-choice-hours"></p>
+<table><thead><tr><th>Bridge southbound</th><th>Fastest</th><th>Allow alternatives</th><th>Could use</th></tr></thead><tbody id="bridge-choice-counts"></tbody></table>
+<p id="bridge-choice-survey"></p><p id="bridge-choice-example"></p><div id="bridge-choice-routes"></div>
+<details><summary>Routes and coverage</summary><p id="bridge-choice-method"></p>
+<a id="bridge-choice-source">2025 North Shore Transportation Survey, Table 35</a></details>
+</div></details>
+<details id="bridge-queue" hidden><summary>Test bridge lanes and queues</summary>
+<p id="bridge-queue-status" role="status"></p>
+<div id="bridge-queue-results" hidden>
+<label>Lane allocation<select id="bridge-lane-policy"></select></label>
+<output id="bridge-queue-clock"></output>
+<canvas id="bridge-queue-plot" width="640" height="155" role="img" aria-label="Vehicles waiting at the bridge throughout the day" style="display:block;max-width:100%;height:auto"></canvas>
+<p id="bridge-queue-legend" hidden>Amber shows your lane allocation. Grey shows the reference.</p>
+<button id="bridge-queue-peak" type="button" hidden>Jump to the longest queue in these hours</button>
+<table><thead><tr><th>Selected hours</th><th>Arriving</th><th>Crossing</th><th>Peak queue</th><th>Waiting at end</th></tr></thead><tbody id="bridge-queue-rows"></tbody></table>
+<p id="bridge-queue-method"></p>
+<p>The experiment queues the same modeled arrivals at the bridge. Route choice and the residents’ diaries stay fixed. The counter is a separate check on crossing volumes.</p>
+<a id="bridge-queue-capacity">Capacity estimates</a> <a id="bridge-counterflow-source">Provincial counterflow rules</a>
+</div></details>
+<details id="bridge-attribution" hidden><summary>Where drivers live and why they cross</summary>
+<table><thead><tr><th>Home area</th><th>To paid work</th><th>Home from paid work</th><th>Other travel</th></tr></thead><tbody id="bridge-attribution-rows"></tbody></table>
+<p id="bridge-direct-work"></p><p id="bridge-census-work"></p>
+<p id="bridge-external-stock" hidden></p>
+<p id="bridge-external-clock" hidden></p>
+<p><a id="bridge-commute-source">Statistics Canada workplace flows</a></p>
+<details id="bridge-commute-schedule" hidden><summary>Compare commute modes and times</summary>
+<label>Home municipality<select id="bridge-schedule-home"></select></label>
+<label>Commute mode<select id="bridge-schedule-mode"></select></label>
+<label>Compare<select id="bridge-schedule-measure"><option value="departures">Departure time</option><option value="durations">Travel duration</option></select></label>
+<label id="bridge-schedule-time-label" hidden>Leaving home<select id="bridge-schedule-time"></select></label>
+<p id="bridge-schedule-total"></p>
+<a id="bridge-schedule-transit-clock" hidden>Replay commutes timed to transit</a>
+<table><thead><tr><th id="bridge-schedule-band">Leaving home</th><th>2021 Census</th><th>All direct work trips</th><th>Across the inlet</th></tr></thead><tbody id="bridge-schedule-rows"></tbody></table>
+<p>The census covers usual commuters by home municipality. The replay counts the first direct home-to-paid-work trip in the diary. Across-inlet trips use assigned workplaces on the opposite shore and may use any mode. The census table covers all destinations.</p>
+<a id="bridge-schedule-source">Statistics Canada table 98-10-0479</a></details></details>
+<details><summary>How crossings are measured</summary><p id="bridge-coverage"></p>
+<p>Counters include all motor vehicles. Crossing times follow shortest directed paths and the diary or commute window. The count periods can differ by bridge and direction.</p>
+<a id="bridge-source"></a> <a id="bridge-speed-source" hidden>Highway 1 travel-time study</a></details>
+</div></details>
+<details id="spread-departures" hidden><summary>Spread simultaneous departures</summary>
+<p id="departure-clock-count"></p>
+<p>This timing comparison spreads road and active-mode trips that start on five-minute marks by up to seven minutes in their original hour. Travel durations, places, activity order and work, school and sleep times are preserved. Some flexible activities change length and some riders wait before leaving. <a href="https://www150.statcan.gc.ca/n1/pub/89-652-x/89-652-x2024003-eng.htm">Statistics Canada’s diary method</a></p>
+<p><a id="departure-clock-replay">Replay the spread departures</a></p>
+</details>
+<details id="departures" hidden><summary>When residents leave for work</summary>
+<p id="departure-reference" role="status"></p><div id="departure-controls" hidden>
+<label>Worker diaries<select id="departure-clock"><option value="original">Original weekday</option><option value="household">Match household commute times</option></select></label>
+<label>Home area<select id="departure-area"></select></label>
+<label><input type="checkbox" id="departure-direct"> Count direct trips only in the model</label>
+<table><thead><tr><th>Leaving home</th><th>2021 census</th><th id="departure-original" hidden>Original</th><th>Weekday</th><th>Residents</th></tr></thead><tbody id="departure-hours"></tbody></table>
+<div id="departure-matched" hidden><p id="departure-match-count"></p><button id="departure-changed">Follow a worker whose diary changed</button>
+<p id="departure-model"></p></div>
+<p id="departure-coverage"></p><p id="departure-peak"></p><button id="departure-follow">Follow a resident at the peak minute</button>
+<p>The census asked when workers usually leave. The replay follows one synthetic weekday. Census counts are rounded and give no information about timing within a band. <a href="https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E">2021 Census Profile</a></p></div></details>
+<details id="survey-zones" hidden><summary>Do trips stay in the home zone?</summary>
+<label id="zone-model-label" hidden>Workplace assignment<select id="zone-model"><option value="sites">Matched walking workplaces</option><option value="tracts">Census tract employment</option></select></label>
+<p id="zone-scenario-note"></p>
+<button id="zone-workplace-example" hidden>Follow a reassigned worker</button>
+<label>Trip purpose<select id="zone-purpose"><option value="work">Home and paid work</option><option value="other">Home and other activities</option><option value="nonhome">Trips between two non-home stops</option></select></label>
+<label><input type="checkbox" id="zone-interior"> Exclude model locations within 200 m of another zone</label>
+<table><thead><tr><th>Home zone</th><th>Survey</th><th>Model</th><th>Model trips</th></tr></thead><tbody id="zone-counts"></tbody></table>
+<p id="zone-coverage"></p>
+<p id="zone-work-volume" hidden></p>
+<p>Share of adult weekday trips with both ends in the resident’s home zone. Counts include external jobs. Residents aged 15–19 count at 40% to approximate ages 18–19. Unknown ages and unmapped endpoints are excluded.</p>
+<p>The nine zones approximate the City survey map. East and Port have the largest boundary differences. Excluding locations near a boundary tests how sensitive the model results are to the mapping. <a href="https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF">City survey, Table 18</a></p></details>
+<details id="north-demand" hidden><summary>Compare North Shore travel with surveys</summary>
+<p id="north-demand-rate" role="status">Loading resident trips…</p><div id="north-demand-results" hidden>
+<label>Home municipality<select id="north-demand-area"></select></label>
+<label>Breakdown<select id="north-demand-view"><option value="modes">Travel mode</option><option value="purposes">Trip purpose</option><option value="hours">Departure hour</option><option value="outbound">Southbound destinations</option></select></label>
+<p id="north-demand-population"></p>
+<table><caption>Trips per 1,000 residents</caption><thead><tr><th>Trip group</th><th>Model</th><th>2023 survey</th><th id="north-demand-2025-column" hidden>2025 survey</th><th aria-label="Example trip"></th></tr></thead><tbody id="north-demand-rows"></tbody></table>
+<p id="north-demand-note"></p><p id="north-demand-2025-note" hidden>The 2025 trip totals are held out from calibration. Fieldwork began about a month earlier in the fall.</p><p id="north-demand-gaps"></p>
+<div id="regional-walk-controls" hidden><label><input id="regional-short-walks" type="checkbox"> Replay reconstructed short walks</label>
+<button id="regional-walk-example" hidden>Follow a reconstructed walk</button><p id="regional-walk-counts"></p></div>
+<p><a id="north-demand-source">2023 North Shore Transportation Survey, section 3</a></p>
+<p id="north-demand-2025-reference" hidden><a id="north-demand-2025-source">2025 North Shore Transportation Survey, section 5</a></p>
+<details id="north-commute-zones" hidden><summary>Work commutes by home zone</summary>
+<label>Workplace area<select id="north-commute-workplace"></select></label>
+<table><caption>Commuters per 1,000 residents aged 15+</caption>
+<thead><tr><th>Home zone</th><th>Model</th><th>2025 survey</th><th aria-label="Example commute"></th></tr></thead>
+<tbody id="north-commute-zone-rows"></tbody></table>
+<p id="north-commute-zone-coverage"></p>
+<p>The model counts each worker’s first located direct commute. The survey estimates people who commuted on the diary day. The home zones are mapped from the survey figure.</p>
+<p id="north-commute-zone-fit"></p>
+<p id="north-commute-zone-link-row" hidden><a id="north-commute-zone-link"></a></p>
+<p><a id="north-commute-zone-source">2025 North Shore Transportation Survey, Tables 3 and 54</a></p>
+</details>
+</div></details>
+<details id="mobility-check"><summary>Compare with the City travel survey</summary>
+<label><input type="checkbox" id="short-walks" disabled> Include inferred short walks</label>
+<p id="walk-counts"></p><button id="walk-example" hidden>Follow an inferred walk</button><p id="mobility-rate" role="status"></p>
+<table><thead><tr><th>Trip mode</th><th>Model</th><th>City survey</th></tr></thead><tbody id="mobility-modes"></tbody></table>
+<p id="mobility-age"></p><p>The survey covers adults in private homes. The model weights the 15–19 age band by two fifths to estimate ages 18–19. Each consecutive travel bout counts once. Short stops without recorded travel and differences between a time-use diary and a travel survey affect the comparison. <a href="https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF">2023 Vancouver Transportation Survey, Figures 31, 33 and 41</a></p>
+<details id="trip-demand" hidden><summary>Where do residents go by each mode?</summary>
+<p id="demand-volume" role="status">Loading resident trips…</p><div id="demand-controls" hidden>
+<label>Home zone<select id="demand-zone"></select></label><label>Travel mode<select id="demand-mode"></select></label>
+<p id="demand-share"></p><table><thead><tr><th>Destination purpose</th><th>Trips</th><th>Share</th><th id="demand-survey-head">Survey</th><th aria-label="Example trip"></th></tr></thead><tbody id="demand-purposes"></tbody></table>
+<p>Counts use recorded travel in the original weekday. Purpose uses the first activity at the destination. Paid work combines usual work and work-related travel. Ambiguous loops and activities without a clear survey equivalent count as other or unclear. Follow opens a located trip from the selected group.</p>
+<p>The City reports mode shares by home zone and purpose shares across all city trips. Boundaries approximate the survey zones, especially East and Port. <a href="https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF">City survey, Table 16 and Figure 36</a></p>
+<details id="demand-purpose-mode" hidden><summary>Compare trip rates with the City survey</summary>
+<table><caption>Weekday trips per 1,000 adult residents</caption>
+<thead><tr><th scope="col">Destination</th><th scope="col">Model / Survey</th><th scope="col">Gap to survey</th></tr></thead>
+<tbody id="demand-purpose-mode-rows"></tbody></table>
+<p id="demand-purpose-mode-note"></p>
+<p>Survey estimates use rounded shares and include recreational loops. Survey cycling includes small wheeled devices such as scooters. Return-home trips have no mode breakdown in this figure. <a href="https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF#page=63">City survey, Figure 46</a></p>
+<p><a href="cityday.html?outings=fit#discretionary-outings">Replay added shopping walks on the original weekday</a></p>
+</details>
+<output id="demand-storage"></output></div></details>
+<details id="trip-timing" hidden><summary>When do residents travel by purpose?</summary>
+<p id="timing-status" role="status">Loading the peak-period comparison…</p>
+<div id="timing-controls" hidden>
+<label>Time of day<select id="timing-period"></select></label>
+<table><caption>Departures per 1,000 adults</caption>
+<thead><tr><th scope="col">Destination</th><th scope="col">Recorded diaries</th><th scope="col">Combined weekday</th><th scope="col">2025 survey</th></tr></thead>
+<tbody id="timing-rows"></tbody></table>
+<p id="timing-shopping"></p>
+<button id="timing-peak" type="button" hidden></button> <button id="timing-follow" type="button" hidden>Follow a fitted shopping walk</button>
+<details><summary>What counts as a trip?</summary>
+<p>One departure per consecutive diary travel bout. The combined weekday adds reconstructed short walks and fitted shopping walks. Fitted shopping trips home count under Return home. The model groups by the first activity at the destination. “Other or unclear” includes school, errands outside shopping and activities without a clear match. The survey also counts trips for passenger drop-off and pickup and recreational loops.</p>
+<p>The survey reports rounded purpose shares and estimated period totals. Rates use each source’s adult population in private homes. The comparison uses the published weekday schedule. <a id="timing-source">Vancouver Transportation Survey, Figures 19–21</a> · <a id="timing-population-source">Table 2 population</a></p>
+</details>
+<details id="shopping-clock-info" hidden><summary>Spread bicycle shopping departures</summary>
+<p id="shopping-clock-report"></p><p id="shopping-clock-transit"></p>
+<p>Both cycling legs and the full shopping visit shift together. Locations and travel times stay fixed. Nearby recreation and home activity absorb the shift. This comparison tests sensitivity to repeated diary times.</p>
+<a id="shopping-clock-link"></a> <button id="shopping-clock-follow" type="button" hidden>Follow a shifted cyclist</button>
+</details>
+<details id="transit-shopping-info" hidden><summary>Transit from work to a shop</summary>
+<p id="transit-shopping-status" role="status"></p>
+<p id="transit-shopping-result"></p><p id="transit-shopping-departures"></p>
+<p>The comparison fits both legs around the recorded shop visit and uses the same job and next stop. Existing bookings keep their seats. The added journeys use the dated timetable and modeled bus capacity. <a id="transit-shopping-source">TransLink schedule data</a></p>
+<a id="transit-shopping-link"></a> <div id="transit-shopping-actions" hidden aria-label="Follow the transit shopping chain"></div>
+</details></div></details></details>
+<details id="pedestrian-check" hidden><summary>Pedestrian counts at intersections</summary>
+<p id="pedestrian-status" role="status">Loading intersection counts…</p>
+<div id="pedestrian-controls" hidden><label>Survey site <select id="pedestrian-site"></select></label>
+<p id="pedestrian-total"></p><label><input type="checkbox" id="pedestrian-short"> Add inferred short walks to the city-only column</label>
+<label id="pedestrian-transit-label" hidden><input type="checkbox" id="pedestrian-transit"> Include walks to and from scheduled transit in the city-only column</label>
+<p id="pedestrian-rider-walks" hidden></p>
+<table><thead><tr><th>Hour</th><th>Observed</th><th>City-only</th><th>Census jobs</th></tr></thead><tbody id="pedestrian-hours"></tbody></table>
+<p>Select a model count to follow a resident passing the intersection on that weekday.</p>
+<details><summary>What was counted?</summary><p>The City counted pedestrian crossings on all four approaches. The model counts a resident walking through the 22 m circle once per leg, with both endpoints outside. It includes routes up to 150 m/min. Adjusted workplace walks must also fit at 75 m/min. The two columns use their original diary shopping stops. Scheduled transit uses direct rides with up to 800 m of walking at each end, timed at 80 m/min. The city-only comparison replaces the original trip with the two walks and the ride. Transfers between services and visitors are outside this comparison.</p><p id="pedestrian-rider-coverage"></p><p id="pedestrian-purpose"></p><p id="pedestrian-lunch"></p><a id="pedestrian-source">City count sheet</a></details>
+</div></details>
+<details id="cycle-check" hidden><summary>Bicycle counts on city streets</summary>
+<details id="cycle-outings" hidden><summary>Could residents cycle a whole outing?</summary>
+<p id="tour-volume" role="status">Loading paired outings…</p>
+<div id="tour-controls" hidden><label>Citywide travel scenario<select id="tour-mode"><option value="diary">Original driver outings</option><option value="access">Cycle with survey-based bicycle access</option><option value="ride">Cycle with universal bicycle access</option></select></label>
+<label>Compare home zone<select id="tour-zone"></select></label><p id="tour-shares"></p><p id="tour-now"></p>
+<label>First stop to follow<select id="tour-purpose"><option value="all">Any purpose</option><option>Shopping</option><option>Dining</option><option>Recreation</option><option>Social</option></select></label>
+<p id="tour-example"></p><div id="tour-legs" aria-label="Follow an outing leg"></div><button id="tour-next">Next outing</button>
+<details><summary>Bicycle access and model assumptions</summary><p id="tour-access-evidence"></p><p id="tour-compute"></p><p>Each outing starts and ends at home. Every leg must reach its original stop within its diary time on the directed cycle network at up to 220 metres per minute. The survey-based scenario assigns bicycle access once per resident using the home-zone rate. Anyone who cycled in the original diary retains access. Both cycling scenarios assume every eligible driver with access will ride and can leave the car at home. Passenger needs are unknown. The model applies the survey’s age 18+ rates to private-household residents known to be 20 or older. <a href="https://vancouver.ca/files/cov/2023-transportation-survey-report.PDF">2023 City survey, Tables 8 and 16</a></p></details></div></details>
+<label hidden>Bicycle route choice <select id="cycle-routing"><option value="shortest">Shortest distance</option><option value="bikeways">Prefer City bikeways</option><option value="hills" hidden>Prefer bikeways and gentler hills</option></select></label>
+<label hidden><input type="checkbox" id="cycle-network-map"> Highlight matched bikeways on the map</label>
+<p id="cycle-status" role="status"></p><div id="cycle-results" hidden><label>Count site <select id="cycle-site"></select></label>
+<p id="cycle-bound" hidden></p><p id="cycle-date"></p><p id="cycle-observation-note"></p><button id="cycle-visit-site">Cycle at this site</button>
+<div id="cycle-paired" hidden><table><caption>Same site and survey hours</caption><thead><tr><th>Weekday scenario</th><th>Passages</th></tr></thead><tbody id="cycle-paired-rows"></tbody></table></div>
+<table><thead><tr><th>Hour starting</th><th id="cycle-observed-hour">City count</th><th id="cycle-base-heading" hidden>Shortest</th><th id="cycle-run-heading">Simulated</th></tr></thead><tbody id="cycle-hours"></tbody></table>
+<details><summary id="cycle-evidence-title">Direction and diary evidence</summary><table id="cycle-directions-table"><thead><tr><th>Approach</th><th>City count</th><th>Simulated</th></tr></thead><tbody id="cycle-directions"></tbody></table><p id="cycle-diaries"></p></details>
+<p>Choose a simulated count to follow a rider. The simulation includes resident trips that fit the directed cycle network at 220 metres per minute. These counts use the weekday’s original shopping destinations.</p>
+<p id="cycle-detours" hidden></p><p id="cycle-hills" hidden><span id="cycle-hill-effect"></span> <a href="https://doi.org/10.1016/j.tra.2012.07.005">Cycling route-choice study</a></p><p id="cycle-coverage"></p><a id="cycle-source" href="https://vancouver.ca/streets-transportation/traffic-count-data.aspx">City of Vancouver count source</a> <a id="cycle-source-location" hidden>Counter locations</a></div></details>
+<details id="campus-panel" hidden><summary>UBC campus weekday</summary>
+<p id="campus-presence"></p><p id="campus-activities"></p><p id="campus-flow"></p><svg id="campus-chart" viewBox="0 0 310 100" role="img" aria-label="Hourly campus person trips from 04:00 to 04:00. Blue bars show arrivals, orange bars departures, and white dots show UBC’s measured peak hours."></svg>
+<p class="campus-legend">Blue · arrivals &nbsp; Orange · departures &nbsp; White · UBC peak counts</p>
+<table><thead><tr><th>Person trips</th><th>Model</th><th>UBC 2025</th></tr></thead><tbody id="campus-comparison"></tbody></table>
+<p>The model counts regional residents with a recorded journey between known places on opposite sides of the campus boundary. Arrival and departure times use the campus endpoint. UBC counted all travellers at five approaches in fall 2025. People living beyond the study area contribute to those counts. <a id="campus-reference">UBC report, Tables 2.1 and 2.3</a></p>
+<p id="campus-mode"></p><p id="campus-rides"></p><button id="campus-example" hidden>Follow a campus transit rider</button></details>
+<details id="transit-panel" hidden><summary>Scheduled transit</summary><label>Scheduled route<select id="transit-route"><option value="">Hide service</option></select></label>
+<button id="transit-fit" hidden>View route</button> <output id="transit-active"></output><p id="transit-status" role="status"></p><p id="transit-source"></p>
+<div id="city-riders" hidden><p id="rider-coverage"></p><p id="rider-route" role="status"></p><p id="rider-observed"></p><button id="rider-follow" hidden>Follow a scheduled rider</button><p id="rider-walk-now"></p><button id="rider-walk-follow" hidden>Follow a walking rider</button>
+<details><summary>How trips are matched</summary><p id="rider-method"></p><p id="rider-walk-peak"></p></details></div></details>
+<details id="personal-transit" hidden><summary>Transit to school, shops and other activities</summary>
+<p id="personal-transit-status" role="status"></p><p id="personal-transit-compatibility" hidden></p>
+<div id="personal-transit-examples"></div><div id="personal-transit-steps" aria-label="Journey stages"></div>
+<details><summary>Coverage and bus space</summary>
+<table><thead><tr><th>Next diary stop</th><th>Eligible</th><th>Matched</th></tr></thead><tbody id="personal-transit-purposes"></tbody></table>
+<p id="personal-transit-method"></p><p id="personal-transit-capacity"></p>
+<a id="personal-transit-gtfs">TransLink schedules</a> · <a id="personal-transit-bus-source">2025 bus-load data</a></details></details>
+<details id="work-transit" hidden><summary>Transit to and from work</summary>
+<p id="work-transit-status" role="status"></p>
+<p id="work-transit-flex" hidden></p>
+<a id="work-transit-switch" hidden></a>
+<div id="work-transit-examples"></div>
+<div id="work-transit-steps" aria-label="Journey stages"></div>
+<details><summary>Timetable and bus space</summary>
+<p id="work-transit-misses"></p>
+<p id="work-transit-load"></p>
+<p id="work-transit-outings" hidden></p>
+<p>Trips keep their diary windows. Riders can walk up to 800 metres to a stop and arrive three minutes before boarding. A transfer uses the same stop or a published connection with a walk of up to 250 metres.</p>
+<p>The replay shares estimated bus space among these work trips. <a id="work-transit-gtfs">TransLink schedules</a> · <a id="work-transit-capacity">2025 bus-load data</a></p>
+</details></details>
+<details id="regional-incoming-transit" hidden><summary>Incoming workers on scheduled transit</summary>
+<p id="regional-incoming-status" role="status">Loading incoming journeys…</p>
+<button type="button" id="regional-incoming-work" hidden>Follow someone to work</button>
+<button type="button" id="regional-incoming-home" hidden>Follow someone home</button>
+<div id="regional-incoming-evidence" hidden>
+<p id="regional-incoming-access"></p>
+<p id="regional-incoming-comparison" hidden><span id="regional-incoming-change"></span> <a id="regional-incoming-earlier">Replay the earlier coverage</a></p>
+<table><caption>Six Downtown SkyTrain stations</caption><thead><tr><th scope="col">Time</th><th scope="col">Incoming cohort alightings</th><th scope="col">Incoming cohort boardings</th><th scope="col">Observed alightings</th><th scope="col">Observed boardings</th></tr></thead><tbody id="regional-incoming-stations"></tbody></table>
+<p>The incoming cohort lives outside the regional roster. Trips share the timetable and estimated bus space with the published resident journeys. Observations include all riders. <a href="https://www.translink.ca/tspr">TransLink counts</a></p>
+</div></details>
+<details id="transit-commutes" hidden><summary>Work commutes timed to transit</summary>
+<p id="transit-commutes-status" role="status"></p>
+<p id="transit-commutes-bus-load" hidden><span id="transit-commutes-bus-number"></span> <a id="transit-commutes-bus-source">TransLink bus-load data</a></p>
+<a id="transit-commutes-link"></a>
+<div id="transit-commutes-results" hidden>
+<table><thead><tr><th>Home area</th><th>Trips timed to service</th><th id="transit-commutes-transfer-column" hidden>With a transfer</th><th>Trips lasting 60 min or more</th></tr></thead><tbody id="transit-commutes-areas"></tbody></table>
+<button id="transit-commutes-follow"></button>
+<p>Residents keep their work start, home, workplace, and return trip. A trip changes when a later departure fits scheduled service, street walks to and from the stops, and a three-minute boarding allowance.</p>
+<p id="transit-commutes-transfer-method" hidden>One change of vehicle is possible at the same stop or between stops linked by a published transfer rule and a street walk of up to 250 metres. The replay allows time for the walk and the minimum connection time.</p>
+<p id="transit-commutes-capacity-method" hidden></p>
+</div></details>
+<details id="movement-evidence"><summary>Movement and map evidence</summary><p>Counts include every synthetic resident in the selected study area. Dots show a fixed sample of residents at known places or travelling on mapped streets and scheduled routes. Click a dot to inspect that resident. Journeys without a mapped position still contribute to the travelling count. In street mode, pale green dots show pedestrians and pink dots show cyclists within 250 m, drawn from the full roster. Each pure walking or cycling trip must fit its diary time on the corresponding street network. The walking ceiling is 150 m/min and the cycling ceiling is 220 m/min. Adjusted workplace and shop walks use their own speed limits. Station walks and inferred short walks have separate controls.</p><p>Home, school, workplace and errand locations are model assignments. Building footprints come from OpenStreetMap and, on the UBC campus in the regional view, the university’s building inventory. Heights use mapped metres, three metres per reported storey, or an assumed height.</p></details>
+</section></div></aside>
+<div class="replay-footer day-map-footer"><div class="street-pad" hidden>
+<div class="street-readout"><output id="street-location"></output><output id="street-speed" aria-label="Player speed"></output><output id="street-turn" hidden></output></div>
+<div class="street-controls" aria-label="Street controls"><button id="left" aria-label="Steer left" title="A or Left Arrow">←</button><button id="forward" title="W or Up Arrow">Forward</button><button id="brake" title="S or Down Arrow">Brake</button><button id="right" aria-label="Steer right" title="D or Right Arrow">→</button><button id="reverse" title="R">Turn around</button><button id="street-eye" aria-pressed="false" title="Drag to look around in the eye-level view">Eye level</button><button id="street-camera" aria-pressed="false">Overhead</button><button id="leave">Leave street</button><a id="street-link">Link to this street</a></div>
+<div class="street-nearby"><output id="nearby-count"></output><button id="nearby-follow" hidden>Follow walker</button><button id="nearby-cycle" hidden>Follow cyclist</button><button id="nearby-drive" hidden>Follow driver</button><button id="nearby-scenario" hidden>Follow scenario trip</button></div>
+<div id="street-shops" hidden><select id="street-shop-site" aria-label="Nearby storefronts"></select><output id="street-shop-distance" for="street-shop-site"></output><button id="street-shop-inspect" type="button">Inspect storefront</button><button id="street-shop-open" type="button" hidden>Open shop here</button></div></div>
+<div class="replay-transport"><details class="map-legend"><summary>Map legend</summary>
+<div class="map-key route-colours" aria-label="Travel colours"><span class="key-stop">Stopped</span><span class="key-walk">Walk</span><span class="key-bike">Bike</span><span class="key-drive" title="Driving routes use mapped speed limits and defaults by road class">Motor</span><span class="key-transit">Transit</span><span class="key-hire" id="hired-map-key" hidden>Taxi or ride-hail</span></div></details>
+<div class="replay-clock" data-replay-clock role="group" aria-label="Playback"><div class="replay-time-row">
+<button id="play" data-clock="play" type="button" disabled>Play</button><output id="clock" data-clock="label" for="minute">08:00</output>
+<input id="minute" data-clock="seek" type="range" min="240" max="1679" value="480" aria-label="Playback time" disabled>
+<select id="speed" data-clock="speed" aria-label="Playback speed"><option value="1">1×</option><option value="60">60×</option><option value="300" selected>300×</option><option value="900">900×</option></select></div>
+<div class="replay-steps" role="group" aria-label="Step through the weekday"><button id="day-back" data-clock="back" type="button" aria-label="Step backward 15 minutes" disabled>−15 min</button>
+<button id="day-forward" data-clock="forward" type="button" aria-label="Step forward 15 minutes" disabled>+15 min</button></div></div></div></div>
+</section></main>
+<script type="module" src="lab/replay-menu.js"></script><script type="module" src="lab/cityday.js"></script></body></html>
