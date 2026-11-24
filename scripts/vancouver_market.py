@@ -335,6 +335,7 @@ def main():
     parser.add_argument("archive",type=Path)
     parser.add_argument("--data",type=Path,default=Path("public/data/vancouver"))
     parser.add_argument("--backend", default="jvm")
+    parser.add_argument("--continuous", action="store_true", help="Score the regional market on the within-bin diary clock")
     weekday = parser.add_mutually_exclusive_group()
     weekday.add_argument("--day", help="Use a published weekday under the current atlas")
     weekday.add_argument("--fitted-atlas", help="Use the published weekday and street network for a fitted atlas")
@@ -349,11 +350,19 @@ def main():
             parser.error("Regional groceries use the regional weekday manifest")
         versions = read(root / "current.json")
         payload = build(args.archive / "data/raw", root / "atlas" / versions["atlas"],
-                        root / "cityday" / versions["day"], root / "streets" / versions["streets"], continuous=True)
+                        root / "cityday" / versions["day"], root / "streets" / versions["streets"], continuous=args.continuous)
         payload["inventoryCoverage"] = "City of Vancouver storefront inventory"
-        target = root / "market" / (versions["day"] + "_" + versions["streets"] + "-continuous.json")
-        target.write_text(json.dumps(payload, separators=(",", ":")))
+        if args.continuous:
+            target = root / "market" / (versions["day"] + "_" + versions["streets"] + "-continuous.json")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(mode="w", dir=target.parent, delete=False) as tmp:
+                json.dump(payload, tmp, separators=(",", ":"))
+            Path(tmp.name).replace(target)
+        else:
+            publish_market(root, payload)
         return
+    if args.continuous:
+        parser.error("--continuous requires the regional weekday manifest")
     versions = market_weekday(root, args.fitted_atlas)
     if args.day:
         versions["day"] = args.day

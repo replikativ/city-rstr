@@ -14,7 +14,7 @@ forecasts.
 
 To reproduce the reviewed preview from a clean checkout, follow the [release and data instructions](deploy/README.md).
 
-With the published datasets in `public/data`, run `npm run overview:build` to regenerate the shared engine products (first rebuild the regional grocery catalogue with `python3 -m scripts.vancouver_market ../Simulations/city --data public/data/vancouver/region`), `npm run release` to compile the explorer, and `npm run preview:bundle` to assemble the checked static preview. The initial Stuttgart build reads the source archive at `../Simulations/city`. Serve the bundle with `python3 -m scripts.preview_local --directory dist/city-previews/current` and open the [local explorer](http://127.0.0.1:8191/city/).
+With the published datasets in `public/data`, run `npm run overview:build` to regenerate the shared engine products (first rebuild the regional grocery catalogue with `python3 -m scripts.vancouver_market ../Simulations/city --data public/data/vancouver/region --continuous`), `npm run release` to compile the explorer, and `npm run preview:bundle` to assemble the checked static preview. The initial Stuttgart build reads the source archive at `../Simulations/city`. Serve the bundle with `python3 -m scripts.preview_local --directory dist/city-previews/current` and open the [local explorer](http://127.0.0.1:8191/city/).
 
 The [shared model](public/weekday-sources.html) explains the clock and simulation outputs. The [Stuttgart](public/stuttgart-model.html) and [Vancouver](public/vancouver-model.html) pages document their population, travel, retail assumptions and source records. Regenerate these pages with `python3 -m scripts.preview_sources`.
 
