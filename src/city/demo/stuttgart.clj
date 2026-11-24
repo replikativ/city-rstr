@@ -41,6 +41,7 @@
             [city.sim.serve :as serve]
             [city.synth.retail :as retail]
             [city.synth.segments :as seg]
+            [city.synth.tripgen :as tripgen]
             [city.web :as web]))
 
 ;; ---- logging -------------------------------------------------------------------------------
@@ -77,7 +78,7 @@
    `:spec` (the retail kernel), `:district-of` (Stadtteil → Stadtbezirk),
    `:spend` (retail potential per person) and `:cell-pop`. The reference
    weekday is made by `publish!`, once the store kernels are known."
-  [& {:keys [sample seed] :or {sample 1.0 seed 1}}]
+  [& {:keys [sample seed trip-rate] :or {sample 1.0 seed 1}}]
   (println "building Stuttgart" (java.util.Date.))
   (step "street graph" #(net/load! :ds net/stuttgart-dataset))
   (let [districts (retail/district-of)
@@ -85,7 +86,7 @@
         world (step "persons and firms" #(cw/build-stuttgart :sample sample))
         world (step "out-commuters" #(cw/place-out-commuters! world cw/stuttgart-out-destinations))
         world (step "purchasing power" #(hh/assign-purchasing-power! world :by-district district-of))
-        diaries (step "diaries" #(pub/diaries-for world :stuttgart))
+        diaries (step "diaries" #(pub/diaries-for world :stuttgart :level trip-rate))
         attract (step "attractiveness" #(:attract (retail/attract (:firms world))))
         kernels (d2/venue-kernels (run/config {}))
         spec (:retail kernels)
@@ -99,7 +100,7 @@
              :district-of district-of
              :spend (step "retail potential" #(spending/retail-potential world))
              :cell-pop (cell-population grid (:persons world) (:home-cell tables))
-             :seed seed}]
+             :seed seed :trip-rate (or trip-rate tripgen/stuttgart-level)}]
     ctx))
 
 ;; ---- three demand classes ------------------------------------------------------------------
@@ -476,19 +477,17 @@
     (doseq [f (.listFiles (io/file "public/lab")) :when (.isFile ^java.io.File f)]
       (copy! f (str "lab/" (.getName ^java.io.File f))))
     (copy! "public/js/app/main.js" "js/main.js")
+    (copy! "public/js/replay/replay.js" "js/replay/replay.js")
     (spit (io/file dir "index.html")
           (-> (slurp "public/lab.html")
-              (str/replace "href=\"/lab/" "href=\"lab/")
-              (str/replace "src=\"/js/app/main.js\"" "src=\"js/main.js\"")
-              (str/replace "href=\"/model.html" "href=\"model.html")
+              (str/replace "src=\"js/app/main.js\"" "src=\"js/main.js\"")
               (str/replace-first "<meta charset=\"utf-8\">"
                                  (str "<meta charset=\"utf-8\">\n  <meta name=\"city-data\" content=\"data/stuttgart/\">"
                                       ;; every path is relative to the folder, so /lab must become /lab/ first
                                       "\n  <script>if (!/\\/$|\\.html$/.test(location.pathname)) location.replace(location.pathname + \"/\" + location.search + location.hash);</script>"))))
     (spit (io/file dir "model.html")
           (-> (slurp "public/model.html")
-              (str/replace "href=\"/lab/lab.css\"" "href=\"lab/lab.css\"")
-              (str/replace "href=\"/lab.html?" "href=\"index.html?")))
+              (str/replace "href=\"lab.html?" "href=\"index.html?")))
     (let [manifest {:written (into (sorted-map) written) :exported-at (str (java.time.Instant/now))}]
       (spit (io/file dir "export-manifest.json") (json/write-str manifest))
       manifest)))
@@ -518,3 +517,79 @@
     "up" (do (up! :port (if arg (parse-long arg) 8092)) @(promise))
     "export" (do (up! :port nil) (println (export-static! :dir (or arg "dist/lab"))) (shutdown-agents))
     (println (:doc (meta #'-main)))))
+
+(defn- presence-path [area-of travel unknown outside outside-job? start end lon lat stops]
+  (let [append (fn [path from until area]
+                 (if (< from until) (conj path [until area]) path))]
+    (loop [path (append [] 0 start unknown) clock start area (area-of lon lat) stops (seq stops)]
+      (if-let [[purpose departure arrival x y moved?] (first stops)]
+        (let [depart (max clock (min end departure))
+              arrive (max depart (min end arrival))
+              path (-> path (append clock depart area) (append depart arrive (if moved? travel area)))
+              target (if (and outside-job? (= purpose "work")) outside (area-of x y))]
+          (recur path arrive target (next stops)))
+        (-> path (append clock end area) (append end 1440 unknown))))))
+
+(defn prepare-presence
+  "Prepare resident schedules from the resolved weekday. A REPL caller can
+  supply a world, prepared day tables and area raster from an existing run."
+  [{:keys [context area-raster boundary-file seed posterior trip-rate files release position-fn] :or {posterior posterior-file}}]
+  (let [boundary-file (or boundary-file
+                          (when (and release (or (:areas-stadtteil.json files) (get files "areas-stadtteil.json")))
+                            (io/file "public/data/stuttgart" release "areas-stadtteil.json")))
+        seed (or seed (:seed context) 1)
+        _ (when (and context (or trip-rate (and (:seed context) (not= seed (:seed context)))))
+            (throw (ex-info "Rebuild the Stuttgart context to change its diary fit or seed" {})))
+        ctx (or context
+                (let [fit (or (load-posterior :file posterior)
+                              (throw (ex-info "Missing Stuttgart retail posterior" {:file posterior})))
+                      _ (when-not (or area-raster boundary-file) ((requiring-resolve 'city.store/connect!)))
+                      ctx (-> (build-world :seed seed :trip-rate trip-rate) segment-inputs money-inputs)
+                      choices (store-choices ctx (posterior-mean fit))]
+                  (assoc-in ctx [:tables :store-choices] (assoc choices :cand (:cand (:dense ctx))))))
+        {:keys [world tables]} ctx
+        raster (or area-raster
+                   (cw/area-raster (:grid tables)
+                                   (if boundary-file
+                                     (with-open [reader (io/reader boundary-file)]
+                                       (cw/area-polygons-fc (json/read reader :key-fn keyword)))
+                                     (area-polygons "stadtteil"))))
+        labels (:areas raster)
+        _ (when (empty? labels) (throw (ex-info "Missing Stuttgart district boundaries" {})))
+        travel (count labels) outside (inc travel) unknown (+ 2 travel)
+        area-of (fn [x y] (let [i (cw/area-at raster x y)] (if (neg? i) unknown i)))
+        persons (:persons world)
+        ^ints external (or (:external persons) (int-array (:n persons)))
+        ^ints outbound (or (:outside persons) (int-array (:n persons)))
+        residents (count (filter zero? external))]
+    {:city :stuttgart :schedule-basis :generated-resident-diary :seed seed :trip-rate (:trip-rate ctx)
+     :population residents :day-start 0
+     :areas (into labels [:travelling :outside :unresolved])
+     :batches!
+     (fn [submit!]
+       (let [batch (java.util.ArrayList.) seen (volatile! 0)
+             flush! (fn [] (submit! (frequencies batch)) (.clear batch))
+             next-id (volatile! 0)
+             missing! (fn [until]
+                        (when position-fn
+                          (doseq [i (range @next-id until)]
+                            (position-fn [[0 (aget ^doubles (:home-lon persons) i)
+                                           (aget ^doubles (:home-lat persons) i)]]))
+                          (vreset! next-id until)))]
+         (d2/step-day-traces
+          world tables seed
+          :schedule-fn (fn [i start end x y stops]
+                         (when position-fn
+                           (missing! i)
+                           (position-fn (into [[0 x y]]
+                                              (map (fn [[_ _ arrival lon lat]] [(min 1439 (max 0 arrival)) lon lat]))
+                                              stops))
+                           (vreset! next-id (inc i)))
+                         (when (zero? (aget external i))
+                           (vswap! seen inc)
+                           (.add batch (presence-path area-of travel unknown outside
+                                                      (= 1 (aget outbound i)) start end x y stops))
+                           (when (= 8192 (.size batch)) (flush!)))))
+         (missing! (:n persons))
+         (flush!)
+         (when (< @seen residents) (submit! {[[1440 unknown]] (- residents @seen)}))))}))

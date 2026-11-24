@@ -16,7 +16,8 @@
    The output uses the Statistics Canada PUMF key vocabulary (`:AGEGRP`,
    `:LFACT`, `:ATTSCH`, …), the schema `city.sim.cityworld/persons-columns`
    reads; the model's first city was Vancouver."
-  (:require [clojure.data.json :as json]
+  (:require [city.synth.sampling :refer [shuffled]]
+            [clojure.data.json :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]))
@@ -287,10 +288,6 @@
                   (update-in [:age st] #(merge-with + (or % {}) (into {} (for [[k _ _ _] grid-bands :let [v (n* (get (:age c) k))] :when v] [k v]))))
                   (update-in [:hh st] #(merge-with + (or % {}) (into {} (for [[k _] hh-bands :let [v (n* (get (:hh c) k))] :when v] [k v])))))))
           {:age {} :hh {}} cells))
-
-(defn- shuffled [^java.util.Random rng coll]
-  (let [l (java.util.ArrayList. ^java.util.Collection (vec coll))]
-    (java.util.Collections/shuffle l rng) (vec l)))
 
 (def band->agegrp (into {} (for [[k g _ _] grid-bands] [k g])))
 

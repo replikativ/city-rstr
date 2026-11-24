@@ -42,6 +42,17 @@
    3313 :car-driver 3314 :car-passenger 3315 :walk 3316 :transit 3317 :air 3318 :bike 3319 :motorcycle
    3320 :taxi 3321 :ridehail 3322 :ferry 3323 :travel-other 3399 :travel-ns})
 
+(def shopping-details
+  {261 :in-person-goods, 262 :in-person-services, 263 :online,
+   264 :purchase-research, 269 :unspecified})
+
+(defn diary-episode [{:keys [ACTIVITY TUI_01 LOCATION STARTMIN DURATION]}]
+  (let [act (activity-classes (num ACTIVITY) :unknown)]
+    (cond-> {:act act :loc (locations (num LOCATION) :unknown)
+             :start (num STARTMIN) :dur (num DURATION)}
+      (= act :shopping) (assoc :shopping-detail (get shopping-details (num TUI_01) :unspecified))
+      (= act :sports) (assoc :sports-detail (num TUI_01)))))
+
 (defn person-type
   "Main-file record → type key used to condition chains."
   [{:keys [MRW_05C AGEGR10 GENDER2]}]
@@ -49,23 +60,37 @@
         age (case (num AGEGR10) 1 :a15-24 2 :a25-34 3 :a35-44 4 :a45-54 5 :a55-64 6 :a65-74 7 :a75+ :na)]
     [act age (case (num GENDER2) 1 :men 2 :women :na)]))
 
+(defn child-under-15
+  "TUS roster flags for ages 0–4 and 5–14. Unknown stays distinct from absent."
+  [m]
+  (let [flags (map m [:CHH0004C :CHH0514C])]
+    (cond (some #{"1"} flags) true
+          (every? #{"0"} flags) false)))
+
 (defn load-diaries
-  "Weekday diaries of urban respondents in `provinces` (default BC + all, see
-   :all?) → {id {:type [act age sex] :weight w :chain [{:act :loc :start :dur}...]}}"
-  [& {:keys [provinces urban-only? weekday-only?] :or {provinces #{59} urban-only? true weekday-only? true}}]
-  (let [mains (read-fixed main-txt main-dct #{:PUMFID :WGHT_PER :PRV :LUC_RST :MRW_05C :AGEGR10 :GENDER2 :DVTDAY :HSDSIZEC :CHH0017C})
+  "Urban weekday diaries, by default from BC. Pass nil for all provinces.
+   project-root may point to another checkout holding data/raw/statcan/timeuse."
+  [& {:keys [provinces urban-only? weekday-only? project-root]
+      :or {provinces #{59} urban-only? true weekday-only? true project-root "."}}]
+  (let [mains (read-fixed (io/file project-root main-txt) (io/file project-root main-dct)
+                          #{:PUMFID :WGHT_PER :PRV :LUC_RST :MRW_05C :AGEGR10 :GENDER2 :DVTDAY
+                            :CHH0004C :CHH0514C :ED_05 :EDC_10 :INC_C :FAMINC_C :HSDSIZEC})
         keep (into {} (for [m mains
                             :when (and (or (nil? provinces) (provinces (num (:PRV m))))
                                        (or (not urban-only?) (= 1 (num (:LUC_RST m))))
                                        (or (not weekday-only?) (= 1 (num (:DVTDAY m)))))]
-                        [(:PUMFID m) {:type (person-type m) :weight (num (:WGHT_PER m)) :chain []}]))
-        eps (read-fixed episode-txt episode-dct #{:PUMFID :ACTIVITY :LOCATION :STARTMIN :DURATION :INSTANCE})]
+                        [(:PUMFID m) {:type (person-type m) :weight (num (:WGHT_PER m)) :child-under-15? (child-under-15 m)
+                                     :income-band (num (:INC_C m)) :family-income-band (num (:FAMINC_C m))
+                                     :household-size (num (:HSDSIZEC m))
+                                     :postsecondary-proxy? (and (= 1 (num (:EDC_10 m)))
+                                                                (contains? #{2 3 4 5 6 7} (num (:ED_05 m))))
+                                     :chain []}]))
+        eps (read-fixed (io/file project-root episode-txt) (io/file project-root episode-dct)
+                        #{:PUMFID :ACTIVITY :TUI_01 :LOCATION :STARTMIN :DURATION})]
     (reduce (fn [acc e]
               (if-let [d (acc (:PUMFID e))]
                 (assoc acc (:PUMFID e)
-                       (update d :chain conj {:act (activity-classes (num (:ACTIVITY e)) :unknown)
-                                              :loc (locations (num (:LOCATION e)) :unknown)
-                                              :start (num (:STARTMIN e)) :dur (num (:DURATION e))}))
+                       (update d :chain conj (diary-episode e)))
                 acc))
             keep eps)))
 

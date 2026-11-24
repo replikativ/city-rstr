@@ -140,3 +140,37 @@
     (doseq [t (range (:n-types dt)) _ (range 500)]
       (let [u (.nextDouble rng)]
         (is (= (scan t u) (pick off cdf t u)))))))
+
+(deftest presence-includes-stationary-and-unresolved-residents
+  (let [ctx (tiny-day 4 2 3)
+        grid (get-in ctx [:tables :grid])
+        tables (:tables ctx)
+        stationary (d2/diary-tables
+                    {[:worker :a25-34 :women]
+                     [{:weight 1 :chain [{:act :home :loc :home :start 240 :dur 1200}]}]})
+        ctx (-> ctx
+                (assoc-in [:world :persons :external] (int-array [0 0 0 1]))
+                (assoc :tables (assoc tables :diaries stationary :ptype (int-array [0 0 -1 0]))))
+        run (requiring-resolve 'city.weekday/run)
+        result (run {:city :stuttgart :context ctx
+                     :area-raster {:areas ["district"] :grid grid :cell (int-array (:n grid))}})]
+    (is (= 3 (:population result)))
+    (is (= (vec (concat (repeat 240 [0 0 0 3]) (repeat 1200 [2 0 0 1])))
+           (:presence result)))))
+
+(deftest presence-follows-an-outbound-work-trip
+  (let [ctx (tiny-day 1 2 3)
+        grid (get-in ctx [:tables :grid])
+        diary (d2/diary-tables
+               {[:worker :a25-34 :women]
+                [{:weight 1 :chain [{:act :home :loc :home :start 0 :dur 420}
+                                    {:act :travel :loc :walk :start 420 :dur 20}
+                                    {:act :work :loc :work-or-school :start 440 :dur 1000}]}]})
+        ctx (-> ctx (update-in [:world :persons] assoc :work (int-array [-1]) :outside (int-array [1])
+                               :exit-lon (double-array [9.3]) :exit-lat (double-array [48.8]))
+                (update :tables assoc :diaries diary :ptype (int-array [0])))
+        run (requiring-resolve 'city.weekday/run)
+        rows (:presence (run {:city :stuttgart :context ctx
+                              :area-raster {:areas ["district"] :grid grid :cell (int-array (:n grid))}}))]
+    (is (= [[1 0 0 0] [0 1 0 0] [0 1 0 0] [0 0 1 0]]
+           (mapv rows [419 420 439 440])))))

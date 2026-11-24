@@ -348,6 +348,11 @@
                     (recur (inc p)))))
               (recur (inc guard)))))))))
 
+(defn shortest-node-path
+  "Unthinned, distance-weighted A* path between two node indices, or nil."
+  [net from to]
+  (astar net from to 0 0.0))
+
 ;; ---- simplification --------------------------------------------------------------------------
 
 (defn- perp-m ^double [[^double px ^double py] [^double ax ^double ay] [^double bx ^double by]]
