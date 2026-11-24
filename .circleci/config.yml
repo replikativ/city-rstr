@@ -88,7 +88,7 @@ jobs:
           command: node --test test/*.test.mjs && bash test/deploy_rotation.sh
       - run:
           name: Release build of the explorer
-          command: npm run release
+          command: npm run release && npm run offline:vancouver
       - run:
           name: The model page is current
           command: python3 scripts/render_model.py && git diff --exit-code public/model.html
