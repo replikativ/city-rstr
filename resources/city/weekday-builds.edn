@@ -1,0 +1,82 @@
+;; Each pair is [path relative to its named root, SHA-256]. For flat directories
+;; the hash covers sorted UTF-8 lines of the form "<file SHA-256>  <filename>\n".
+{:source-register-sha256 "4890c3ff828cbcfc1d408c41439166c6e3c092d997ac872d85656eaf769c1851"
+ :builds {
+  "a798b53e1d8253ef60f8b76762a7eb0b4971efc08b820ebed06ce67a8d684253"
+  {:run-sha256 "eb7d2bda18b38c64c148dd473e273298f69bef96acbcb9887d504718282e03f3"
+   :city "stuttgart" :coverage "city"
+   :sources :published
+   :release-files "stuttgart/a798b53e1d8253ef60f8b76762a7eb0b4971efc08b820ebed06ce67a8d684253"
+   :archive-files {
+    :roads ["data/raw/osm-overpass/stuttgart_highways.json" "724e9dccdb4632430035aac25590e40375baeb50955b5bb0fda1fbcbaf2e4f21"]
+    :venue-pulls ["data/raw/osm-overpass/stuttgart" "81feea7031fe54fd4e1a8912ab91351b1927456945bc5f1741a0ddbf7effb263"]
+    :diary-respondents ["data/raw/statcan/timeuse/Data_Données/TU_ET_2022_Main-Principal_PUMF.txt" "70d73cbf8f6fa6b8b66042ab613f81517213bb6b3f53816929817af8e80525e8"]
+    :diary-episodes ["data/raw/statcan/timeuse/Data_Données/TU_ET_2022_Episode_PUMF.txt" "19e4b7ebc3e1834115f50fa79127cf04cfac2d3ecd7ec61dcd29d3c963fd2919"]
+    :respondent-layout ["data/raw/statcan/timeuse/Layout_MisEnPages/STATA/TU_ET_2022_Main_PUMF.dct" "04d0604817ab2c0678bd7d965830fb770316f21663db3f6f3a0f47797a33890d"]
+    :episode-layout ["data/raw/statcan/timeuse/Layout_MisEnPages/STATA/TU_ET_2022_Episode_PUMF.dct" "62468907f79467c572e3cfebccf0b3c355e8d12824aef293ae8a6a786776bdbb"]
+    :resident-roster ["data/derived/synth_stuttgart_persons.edn" "c0c19bcf845043a92ab96771a098d465218acd19a429980f94b8a424d260f380"]
+    :home-cells ["data/derived/stuttgart_cell_centroids.jsonl" "769b368e5eaf40740ccf49ebd4b549aae152723736d1b8fc065f8b8df8ac1f76"]
+    :firms ["data/derived/firms/stuttgart-2025.json" "e69f6d887ad298d03b59ec575f9a8dbd3df886a5abe69d40a54b105d4332285d"]
+    :commute-shares ["data/derived/stuttgart_commute_shares.edn" "1f8b3fc52db9c785c573487b981e67fc10dfe3ff3e0990c423e4e242c308bc6a"]
+    :commuter-origins ["data/derived/stuttgart_incommuter_origins.jsonl" "23639d241f7e09aa99b3e82862d896077c8884a945009d6f5e01a94a5fb225a9"]
+    :districts ["data/derived/stuttgart_areas.jsonl" "052a5343a22906c24552c1f62bd18c9bf0e2ba0683fffb73516fa972d29d120b"]
+    :purchasing-power ["data/derived/stuttgart_jahrbuch_einkommen.json" "11a16919937a61056dc96ed767e45258dd0ed7215fcb0d79a3cdb56bcb43d927"]
+    :floor-area ["data/derived/stuttgart_firm_size_m2.json" "b3d17dda35bb755c421cf386d296e4440ea1c0d838057b25aa86fa86c315266e"]
+    :retail-districts ["data/derived/stuttgart_retail_districts.json" "ffee5afb7e13585984f521505dc076e38962cada995b34f58182a162c67bdec3"]
+    :retail-segments ["data/derived/stuttgart_retail_detail.json" "dbe46d8bb4a62a30107a6c7368577def5d19f51f301a07edbfea6b60fe23ce79"]
+    :posterior ["data/derived/stuttgart-seg-posterior-n48-iter200-pooled.edn" "d1bb297c1ac33244249047be2e3fe800ef4dbe713142e3f8c0d2953420c36407"]}}
+  "4f711d78c7e0f40698dd7dd0c10df51d85429318e20d12572de0bebaa5cc88a5"
+  {:run-sha256 "a63ae24780556cb11b02f842dc5b5b031841268344655aea6843ecc73526ca16"
+   :city "vancouver" :coverage "city"
+   :sources ["profile" "pumf" "time-use" "survey23" "flows" "transit" "survey25" "storefronts-inventory" "business-licences"]
+   :route-cache "d74597cf8a6e835c6274"
+   :files {
+    :roster ["vancouver/atlas/59b3bcac4137ca1483c9" "9cd4df9f61d8713bd3b32fa7a13ac701629517a9c94446c4a4860954754c9f6b"]
+    :day ["vancouver/cityday/dbd7a101357f3c27976f" "9a7be0c677734ecc72840f6bf90ff20a02260da861c0a602bbdb0d9b1b743000"]
+    :roads ["vancouver/streets/333eba0446c76d30b4b4/network.json" "1398965e5cbb73ee80b96a6c637616d967ba9ebcec0741a1b1d748cff138a6a3"]
+    :drive-profile ["vancouver/drive-profile/333eba0446c76d30b4b4.json" "b928aae3e3c4f74bde4bf093a826c012dead0de8fa98b85462e1fddf7620b4a5"]
+    :route-files ["vancouver/overview-routes/d74597cf8a6e835c6274" "0aca3444e40d28d2c1f749db2f9ac41b74e2c99c1c76529e90a2342783d442cb"]
+    :market ["vancouver/market/dbd7a101357f3c27976f_333eba0446c76d30b4b4.json" "4614fc4e7623f4a46b7aa5b2d575bbfbdb2b07c8a81c4d5dd78711ec2ced66a5"]
+    :cycle-network ["vancouver/cycling/e498f628ce8e8400bbd4/network.json" "50ad3d41567e9431783ed08dc63860d12c030aec38e9d34a9170356dcf6a0ad5"]
+    :policy ["vancouver/raster/59b3bcac4137ca1483c9_dbd7a101357f3c27976f.json" "0044005c348da4ee60e16e6c3108d54dec36e4635b0efab8d0a8813ed45b14cb"]}}
+  "9a347b6c66b391a5ee139050c5ba5540ba11f9e2733ca706ff121bc3cb13966f"
+  {:run-sha256 "ed65f2f0fd836ddccb49f41c165075903a0c4f549cffb15dab2f9eacb951f4ae"
+   :city "vancouver" :coverage "city"
+   :sources ["profile" "pumf" "time-use" "survey23" "flows" "transit" "survey25" "storefronts-inventory" "business-licences"]
+   :route-cache "cbaa731563ee0e2bfb73"
+   :files {
+    :roster ["vancouver/atlas/5a9289c6bc981c54b70d" "1440fbec6ff8a6a79b5d709feb620dae97879da9e13d79b15b0fa12b112ccd26"]
+    :day ["vancouver/cityday/309376fc6e41dadaa98a" "bcf9b50c6d19cd96b859d423200e9c43bc71a293335e01685b41e07d61cab7c6"]
+    :roads ["vancouver/streets/333eba0446c76d30b4b4/network.json" "1398965e5cbb73ee80b96a6c637616d967ba9ebcec0741a1b1d748cff138a6a3"]
+    :drive-profile ["vancouver/drive-profile/333eba0446c76d30b4b4.json" "b928aae3e3c4f74bde4bf093a826c012dead0de8fa98b85462e1fddf7620b4a5"]
+    :route-files ["vancouver/overview-routes/cbaa731563ee0e2bfb73" "31fdbbf1c1bb3817fbfc3da876e78a6870ee179e156f3dc241b5f89c29931327"]
+    :market ["vancouver/market/309376fc6e41dadaa98a_333eba0446c76d30b4b4.json" "0e7db61cc1e70175a01ec8b3754ee7f3bf446ecb4846ca8f8d845e1f526b44d0"]
+    :cycle-network ["vancouver/cycling/e498f628ce8e8400bbd4/network.json" "50ad3d41567e9431783ed08dc63860d12c030aec38e9d34a9170356dcf6a0ad5"]
+    :joint-weekday ["vancouver/joint-weekday/5ab7efac0ffa7e618e13" "37de7e2cd647dfc8870e7bc953b5a128e62b2b04497dae1875d7fe952a00cb8c"]
+    :incoming-transit ["vancouver/incoming-transit/03738fec2bffa002bc2a" "da0f58d5a3a2f747d5968a4fe6760aa26e3ac78d1d7831cc4f7545cb9a8cf459"]
+    :outbound-road-jobs ["vancouver/outbound-road-jobs/f5eaa497b25db2fb1d92" "3ef57cd429a620149c203500dd4df0d9c86733ef405642af65e240515df7b7ea"]
+    :outbound-transit ["vancouver/outbound-transit/01a4505c4a27a12673f3" "d2a56230fd1f01545e4793755a63dcfc8003b1d5db8bddc28f60be6b650ca046"]
+    :commuters ["vancouver/commuters/4601d7c332d8373f7f10" "1898c98f5ddbe8b015f09cf83d9c4ded990ea0741d13fe5c9a53b64623d23252"]
+    :home-fit ["vancouver/incoming-home-fit/8b9df5874a68abe758bb" "2c0c064e6a830e27c93580601b1973921b5c81a3b635e81d1a6fb06c6f69b5e3"]}}
+  "5dc5989273e3df3c763cf85fbd2d6483e20dc6366ea8811243f6386327379182"
+  {:run-sha256 "03a3712a9b7c21c9fad3c88f935647a9bb91206a275fb83aec9cf56ccd4c2a57"
+   :city "vancouver" :coverage "region"
+   :sources :published
+   :route-cache "046dd3204ab772cb9771"
+   :files {
+    :roster ["vancouver/region/atlas/f03720031a3d2801b7fc" "d61826ae2a928bf7ea7ba6a45ac4a42e788327fcb6f8eabae14a1fb76128a328"]
+    :day ["vancouver/region/cityday/803724fb5af012e0a0c7" "ce8c486d792731dfac6900c89c22fc1eb8715334341137d28f3ebb58ce272657"]
+    :roads ["vancouver/region/streets/16e5a8cdd8d256fc8e44/network.json" "5fc48461177f88cf200b6935ea1d95ee2c77553f65c809fe56b5f22c2ea5d969"]
+    :drive-profile ["vancouver/region/drive-profile/16e5a8cdd8d256fc8e44.json" "d968161d23ab9d81a08999de29ebb581e4737a537b6e33cae9a0384a989cc284"]
+    :route-files ["vancouver/region/overview-routes/046dd3204ab772cb9771" "70376f5302ffa7b599450e8662642e6fda0867912c84f71b47e56dd27316135c"]
+    :market ["vancouver/region/market/803724fb5af012e0a0c7_16e5a8cdd8d256fc8e44-continuous.json" "9352531a762334f251f5730e2cfc9efda7107e9b2da2d03573b2b448932a014d"]
+    :cycle-network ["vancouver/region/cycling/3faeb22bf94867423579/network.json" "4649eff39cb5c816626a6b8e7c2fcb35c135b79a31b5e86f57eed6660e59eb13"]
+    :policy ["vancouver/region/raster/f03720031a3d2801b7fc_803724fb5af012e0a0c7.json" "92091d75b0fa1f34b8bfc54f8d7c253d8c35abe7e40e533eab83aa6870564c8e"]
+    :transit ["vancouver/region/transit/175220fb4e259830ad16" "122604e16bb936515508af046e4634522292f50e4f75ff829ac0671f7c53b96e"]
+    :incoming-workers ["vancouver/region/incoming-workers/8d1f03895cbae6faea32" "3d9ee13c14b9e59c45771405afacbc0fa8aa29cf3bfffff8da32d65229622ab5"]}
+   :evidence {
+    :demand ["vancouver/downtown-audit/5dc5989273e3df3c763cf85fbd2d6483e20dc6366ea8811243f6386327379182-demand.json" "1ed84f8445a9c2a1c5c50cbcda60412a745b38e1ddd66cd27c58d97e7df7c41b"]
+    :roads ["vancouver/downtown-audit/5dc5989273e3df3c763cf85fbd2d6483e20dc6366ea8811243f6386327379182-roads.json" "e30c4cf63b9e996ae30643eb2361e5df3fcb9464a4d3802a84ff6ff0b81a8f5f"]
+    :inlet ["vancouver/downtown-audit/5dc5989273e3df3c763cf85fbd2d6483e20dc6366ea8811243f6386327379182-inlet.json" "75654ae4644989d34ac40ccf9a3b1c2cca03dab396884595783687df5129f757"]
+    :rail ["vancouver/downtown-audit/5dc5989273e3df3c763cf85fbd2d6483e20dc6366ea8811243f6386327379182-rail.json" "750d27811eb621e2ed01228ecc90a1a7cea5454de30d87be807b21439f122cad"]
+    :bicycles ["vancouver/downtown-audit/5dc5989273e3df3c763cf85fbd2d6483e20dc6366ea8811243f6386327379182-bicycles.json" "027ea7b485550cb773861fae87c08ad2572d40fe4e13acd0b67ce5b90bf5f5e1"]}}}}

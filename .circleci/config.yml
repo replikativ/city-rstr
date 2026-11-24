@@ -84,8 +84,14 @@ jobs:
             - ~/.npm
           key: v1-npm-{{ checksum "package-lock.json" }}
       - run:
+          name: Offline artifact, explorer and deployment checks
+          command: |
+            python3 -m unittest discover -s test -p test_artifacts.py
+            node --test test/*.test.mjs
+            bash test/deploy_rotation.sh
+      - run:
           name: Release build of the explorer
-          command: npm run release
+          command: npm run release && npm run offline:vancouver
       - run:
           name: The model page is current
           command: python3 scripts/render_model.py && git diff --exit-code public/model.html

@@ -13,7 +13,10 @@
         hato/hato              {:mvn/version "1.0.0"}
         http-kit/http-kit      {:mvn/version "2.8.0"}}
  :aliases
- {;; REPL-first development: nREPL + cider, notebooks
+ {:weekday-build {:jvm-opts ["-Xmx4g" "-XX:ActiveProcessorCount=4"
+                              "--enable-native-access=ALL-UNNAMED" "--add-modules=jdk.incubator.vector"]
+                  :main-opts ["-m" "city.build"]}
+  ;; REPL-first development: nREPL + cider, notebooks
   :dev {:extra-paths ["dev" "test" "notebooks"]
         :extra-deps {nrepl/nrepl {:mvn/version "1.3.0"}
                      cider/cider-nrepl {:mvn/version "0.50.2"}

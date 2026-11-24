@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stuttgart weekday model · City laboratory</title><link rel="stylesheet" href="lab/explorer.css"><link rel="stylesheet" href="lab/replay-shell.css"><link rel="stylesheet" href="lab/model-notes.css"></head><body class="replay-shell model-notes"><header class="masthead"><a class="wordmark" href="https://simm.is">simm<span>is</span></a><nav aria-label="Model pages"><a href="weekday-sources.html">Shared model</a> <a href="stuttgart-model.html" aria-current="page">Stuttgart</a> <a href="vancouver-model.html">Vancouver</a></nav><a class="map-link" href="explorer.html?city=stuttgart&amp;release=a798b53e1d8253ef60f8b76762a7eb0b4971efc08b820ebed06ce67a8d684253">Open map</a></header><main><h1 id="stuttgart">Stuttgart weekday model</h1><p class="lead">If Milaneo moved to Zuffenhausen, which districts and shops would gain spending, and where would the customers come from?</p>
+<h2>People, workplaces and diaries</h2>
+<p>The Stuttgart weekday includes 610,444 synthetic residents and 326,153 incoming commuters. The Zensus grid constrains where residents live. Employment records describe commuter origins. A commuter count in a municipality represents an employment relationship. Turning it into a journey requires a workplace assignment, a schedule and a route.</p>
+<p>Activity diaries transfer the order and timing of activities from Canadian time-use respondents. German mobility evidence constrains trip frequency. Local observations are therefore especially valuable for testing the time of day at which Stuttgart’s modeled trips take place.</p>
+<figure>
+<svg viewBox="0 0 640 372" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pipeline of the model from published data through the simulated day and money to the likelihood, the posterior and the scenarios">
+  <defs><marker id="pa" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M 0,0 L 8,3 L 0,6 Z" fill="var(--graphite)" opacity="0.8"/></marker>
+  <marker id="pa-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M 0,0 L 8,3 L 0,6 Z" fill="var(--branch-green)"/></marker>
+  <marker id="pa-b" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M 0,0 L 8,3 L 0,6 Z" fill="var(--memory-blue)"/></marker></defs>
+  <g font-family="'IBM Plex Mono', monospace" font-size="10">
+    <!-- measured sources -->
+    <rect x="20" y="16" width="180" height="44" fill="var(--runtime-amber)" fill-opacity="0.12" stroke="var(--runtime-amber)"/>
+    <text x="30" y="34" fill="var(--runtime-amber)">published marginals</text><text x="30" y="48" font-size="8" fill="var(--graphite)">Zensus 2022 · IFH · EZK 2024 · BA</text>
+    <rect x="230" y="16" width="180" height="44" fill="var(--runtime-amber)" fill-opacity="0.12" stroke="var(--runtime-amber)"/>
+    <text x="240" y="34" fill="var(--runtime-amber)">survey microdata</text><text x="240" y="48" font-size="8" fill="var(--graphite)">StatCan TUS 2022 · MiD</text>
+    <rect x="440" y="16" width="180" height="44" fill="var(--runtime-amber)" fill-opacity="0.12" stroke="var(--runtime-amber)"/>
+    <text x="450" y="34" fill="var(--runtime-amber)">buildings, firms, GTFS</text><text x="450" y="48" font-size="8" fill="var(--graphite)">OSM · Overture · registers</text>
+    <!-- world, drawn once -->
+    <rect x="20" y="90" width="180" height="44" fill="none" stroke="var(--rail)"/>
+    <text x="30" y="108" fill="var(--ink)">persons i · 936,597</text><text x="30" y="122" font-size="8" fill="var(--graphite)">home cell, work, type, money</text>
+    <rect x="230" y="90" width="180" height="44" fill="none" stroke="var(--rail)"/>
+    <text x="240" y="108" fill="var(--ink)">diaries D · by type</text><text x="240" y="122" font-size="8" fill="var(--graphite)">when, and what kind of place</text>
+    <rect x="440" y="90" width="180" height="44" fill="none" stroke="var(--rail)"/>
+    <text x="450" y="108" fill="var(--ink)">firms j · 24,849 · A_j</text><text x="450" y="122" font-size="8" fill="var(--graphite)">3,637 retail, floor per class s</text>
+    <path d="M 110,60 L 110,88" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <path d="M 320,60 L 320,88" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <path d="M 530,60 L 530,88" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <!-- the day -->
+    <rect x="150" y="170" width="280" height="50" fill="none" stroke="var(--ink)"/>
+    <text x="162" y="188" fill="var(--ink)">the day · anchor → choice</text>
+    <text x="162" y="201" font-size="8" fill="var(--graphite)">P(j | c; θ_s) over every venue, u(s,i,k) addressed</text>
+    <text x="162" y="212" font-size="8" fill="var(--graphite)">visits[j,h], legs, spend per visit</text>
+    <path d="M 110,134 L 200,168" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <path d="M 320,134 L 300,168" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <path d="M 530,134 L 390,168" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <!-- theta -->
+    <rect x="440" y="176" width="180" height="60" fill="none" stroke="var(--memory-blue)"/>
+    <text x="450" y="194" fill="var(--memory-blue)">θ = (α_s, β_s, d₀,s)</text>
+    <text x="450" y="208" font-size="8" fill="var(--graphite)">nine numbers, three per class</text>
+    <text x="450" y="222" font-size="8" fill="var(--graphite)">prior → posterior, spindel MH / SMC</text>
+    <path d="M 440,200 L 432,197" fill="none" stroke="var(--memory-blue)" marker-end="url(#pa-b)"/>
+    <!-- expectation -->
+    <rect x="150" y="252" width="280" height="44" fill="none" stroke="var(--rail)"/>
+    <text x="162" y="270" fill="var(--ink)">T_{d,s}(θ) = Σ_c E_{c,s} Σ_{j∈d} P(j|c;θ_s)</text>
+    <text x="162" y="284" font-size="8" fill="var(--graphite)">expected turnover per district and class, exact</text>
+    <path d="M 290,220 L 290,250" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <!-- likelihood -->
+    <rect x="20" y="252" width="120" height="44" fill="var(--runtime-amber)" fill-opacity="0.12" stroke="var(--runtime-amber)"/>
+    <text x="30" y="270" fill="var(--runtime-amber)">Y_{d,s} observed</text><text x="30" y="284" font-size="8" fill="var(--graphite)">69 = 23 districts × 3</text>
+    <rect x="150" y="322" width="280" height="34" fill="none" stroke="var(--rail)"/>
+    <text x="162" y="343" fill="var(--ink)">log T_{d,s}(θ) ~ N(log Y_{d,s}, σ²)</text>
+    <path d="M 290,296 L 290,320" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <path d="M 80,296 L 80,339 L 148,339" fill="none" stroke="var(--graphite)" marker-end="url(#pa)"/>
+    <path d="M 430,339 L 530,339 L 530,238" fill="none" stroke="var(--memory-blue)" marker-end="url(#pa-b)"/>
+    <text x="538" y="300" font-size="8" fill="var(--memory-blue)">the likelihood</text><text x="538" y="311" font-size="8" fill="var(--memory-blue)">updates θ</text>
+    <!-- scenario -->
+    <rect x="20" y="170" width="120" height="50" fill="none" stroke="var(--branch-green)"/>
+    <text x="30" y="188" fill="var(--branch-green)">do(R := R′)</text>
+    <text x="30" y="201" font-size="8" fill="var(--graphite)">close or open venues,</text>
+    <text x="30" y="212" font-size="8" fill="var(--graphite)">Δ under every particle</text>
+    <path d="M 140,195 L 148,195" fill="none" stroke="var(--branch-green)" marker-end="url(#pa-g)"/>
+  </g>
+</svg>
+<figcaption>Measured inputs (amber) are drawn once into a fixed world of people, diaries and firms.  The day places every person by the diary and the choice kernel.  Its expectation per district and class is what the likelihood compares with the 69 published turnovers, and that comparison updates the nine kernel numbers θ (blue).  A scenario (green) changes only the venue set and re-runs the day and its expectation under every posterior particle.</figcaption>
+</figure>
+<h2>How shoppers choose</h2>
+<p>A shop’s appeal depends on its measured attractiveness and its distance from the shopper’s location. In each demand class, raising attractiveness increases the shop’s weight and greater distance reduces it. The chance of choosing a shop is its weight divided by the sum of the weights of all competing shops.</p>
+<p class="equation" aria-label="Choice weight equals attractiveness to the power alpha times one plus distance divided by distance scale to the power minus beta">w = A<sup>α</sup> (1 + d / d₀)<sup>−β</sup></p>
+<p>The model estimates three parameters for each of three demand classes using published turnover for 23 districts. The likelihood compares expected and observed turnover on a logarithmic scale. Agreement at district level checks the spatial allocation of spending at the scale used for fitting. Receipts or entries from an individual shop would test a finer prediction.</p>
+<h2>The Milaneo intervention</h2>
+<p>Closing Milaneo removes it from the choice set. Relocating it introduces a new competing destination. For each draw of the fitted parameters, the model compares the same population under both venue sets. The spending estimate averages those paired differences. The 90% interval spans their 5th to 95th percentiles. The map also shows hourly visit changes from a sampled weekday. A shop can gain visits in one hour while losing spending across the full period.</p>
+<p>The original exposition works through the joint distribution, priors, likelihood, money flows and interventions, with diagrams and references. <a href="model.html">Read the full Stuttgart probabilistic model</a>.</p>
+<details id="street-timing"><summary>How fast do Stuttgart travellers move?</summary><p>The animation follows each street segment on the simulation clock. Walking uses up to 5 km/h (3 on steps), cycling up to 20 on cycleways and 18 on ordinary streets. The driving assumptions range from 7 on living streets to 30 on residential streets, 45 on primary roads and 90 on motorways. Lower numeric OpenStreetMap speed limits take precedence. Motor trips starting at 07:00–09:00 or 16:00–18:00 use 75% of the usual speed. This is an assumed weekday traffic pattern.</p><p>When the diary allows extra time, movement slows proportionally. For motor trips whose archived path fails, a travel-time A* search tries a directed road route and allows walking time to its endpoints. Transit uses a road proxy capped at 35 km/h. Paths that still exceed the time budget or cannot be routed are omitted from the moving sample. The population and economic calculations use the full diaries.</p><table><thead><tr><th>Mode</th><th>Animated trips</th><th>Archived sample trips with positive duration</th></tr></thead><tbody><tr><td>bike</td><td>175</td><td>553</td></tr><tr><td>car</td><td>4,401</td><td>8,154</td></tr><tr><td>transit</td><td>2,619</td><td>3,114</td></tr><tr><td>walk</td><td>6,737</td><td>8,179</td></tr></tbody></table></details><h2 id="a798b53e1d8253ef60f8b76762a7eb0b4971efc08b820ebed06ce67a8d684253">Sources for this weekday</h2><p>The turnover fit uses district observations. Individual shop visits and the use of Canadian diary timing in Stuttgart need independent local checks.</p><a href="explorer.html?city=stuttgart&amp;release=a798b53e1d8253ef60f8b76762a7eb0b4971efc08b820ebed06ce67a8d684253">Explore this run</a> · <a href="data/runs/a798b53e1d8253ef60f8b76762a7eb0b4971efc08b820ebed06ce67a8d684253.json">Run manifest</a> · <a href="sources/weekday.json">Source records and checksums</a><ul class="sources"><li><a href="https://www.destatis.de/static/DE/zensus/gitterdaten/">Destatis · Zensus 2022</a><p>Population controls · 100 m grid extract for the Stuttgart study area. Cell counts and age margins constrain synthetic residents.</p></li><li><a href="https://statistik.arbeitsagentur.de/">Bundesagentur für Arbeit · 2024 Einpendler</a><p>Commuter origins · Work municipality 08111000, socially insured employees by municipality of residence. Geographic coverage follows the employment register.</p></li><li><a href="https://sg.geodatenzentrum.de/web_public/gdz/datenquellen/datenquellen_vg_nuts.pdf">© BKG 2026 · VG250-EW municipal boundaries (dl-de/by-2-0)</a><p>Commuter origin geography · Municipal polygons around Stuttgart from BKG, joined by AGS to 2024 BA inbound commuter counts. The layer covers the mapped vicinity. Counts describe employment relationships in the register.</p></li><li><a href="https://www150.statcan.gc.ca/n1/en/catalogue/452500012025001">Statistics Canada · 2022 Time Use Survey</a><p>Diary donors · 24-hour primary-activity episodes and respondent survey weights. Vancouver draws urban BC weekdays. Stuttgart transfers Canadian schedules and fits their trip frequency to German evidence.</p></li><li><a href="https://www.mobilitaet-in-deutschland.de/publikationen2023.html">Mobilität in Deutschland · 2017 and 2023</a><p>Travel calibration · MiD 2023 municipal small-area estimate, municipality 08111000, gives 2.861 trips per person-day. The 2017 Stuttgart Grundauswertung, P32.1, supplies relative trip rates by activity.</p></li><li><a href="https://www.stuttgart.de/leben/stadtentwicklung/stadtplanung/stadt--und-freiraumentwicklung/einzelhandels-und-zentrenkonzept">Stuttgart · Einzelhandels- und Zentrenkonzept 2024</a><p>Retail calibration · Part 2, profiles of 23 Stadtbezirke. The model groups turnover into three demand classes and fits distance and attractiveness parameters. Floor area helps allocate attractiveness within each class.</p></li><li><a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors · Stuttgart highway geometry and tags</a><p>Street geometry, road classes, one-way restrictions and tagged speed limits · Archived Overpass highway ways in the Stuttgart study area. Missing speeds use the assumptions in the street timing notes.</p></li></ul></main></body></html>

@@ -150,7 +150,7 @@
                 :when (and (pos? (reduce + visits))
                            (in-bbox? bbox (aget ^doubles (:lon fs) j) (aget ^doubles (:lat fs) j)))]
             {:type "Feature" :geometry {:type "Point" :coordinates [(aget ^doubles (:lon fs) j) (aget ^doubles (:lat fs) j)]}
-             :properties {:name (aget ^objects (:name fs) j) :category (when-let [^objects c (:category fs)] (aget c j))
+             :properties {:firm j :name (aget ^objects (:name fs) j) :category (when-let [^objects c (:category fs)] (aget c j))
                           :classes (mapv name classes)
                           :visits visits
                           :revenue-eur-year (mapv #(Math/round (* 365.0 (/ (sum rev % q) 100.0))) (range (count classes)))}})))))

@@ -1,0 +1,27 @@
+<figure id="vancouver-pipeline" class="weekday-pipeline">
+<div class="diagram-window" tabindex="0" role="region" aria-label="Vancouver model diagram">
+<svg viewBox="0 0 640 365" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="van-title van-desc">
+<title id="van-title">How Vancouver’s weekday and grocery opening are simulated</title>
+<desc id="van-desc">Census controls and donor households produce a resident roster. Survey diaries supply timed commitments. Streets, licences and storefronts locate possible shops. The weekday produces area counts checked against transport observations. The grocery comparison holds the day fixed and changes the stores available.</desc>
+<defs><marker id="van-arrow" viewBox="0 0 8 6" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0 0L8 3L0 6Z" fill="var(--graphite)"/></marker><marker id="van-change" viewBox="0 0 8 6" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0 0L8 3L0 6Z" fill="var(--branch-green)"/></marker></defs>
+<g fill="none" stroke="var(--graphite)" marker-end="url(#van-arrow)">
+<path d="M110 55V79"/><path d="M320 55V79"/><path d="M530 55V79"/>
+<path d="M110 123L225 155"/><path d="M320 123V155"/><path d="M530 123L415 155"/>
+<path d="M255 205L159 236"/><path d="M380 205L452 236"/><path d="M155 280V306"/><path d="M450 280V306"/>
+</g>
+<g class="measured"><rect x="20" y="10" width="180" height="45"/><text x="30" y="29">Census &amp; microdata</text><text class="sub" x="30" y="44">2021 counts · household donors</text></g>
+<g class="measured"><rect x="230" y="10" width="180" height="45"/><text x="240" y="29">Time Use Survey</text><text class="sub" x="240" y="44">2022 · urban BC weekday diaries</text></g>
+<g class="measured"><rect x="440" y="10" width="180" height="45"/><text x="450" y="29">Streets &amp; businesses</text><text class="sub" x="450" y="44">OSM · licences · storefronts</text></g>
+<g><rect x="20" y="81" width="180" height="42"/><text x="30" y="98">Regional roster</text><text class="sub" x="30" y="113">{{RESIDENTS}} residents</text></g>
+<g><rect x="230" y="81" width="180" height="42"/><text x="240" y="98">Timed commitments</text><text class="sub" x="240" y="113">activity, mode, minutes</text></g>
+<g><rect x="440" y="81" width="180" height="42"/><text x="450" y="98">Reachable locations</text><text class="sub" x="450" y="113">homes, workplaces, stores</text></g>
+<g class="day"><rect x="160" y="157" width="320" height="48"/><text x="174" y="177">One regional weekday · 04:00 to 04:00</text><text class="sub" x="174" y="193">resident schedules + {{INCOMING}} attending external workers</text></g>
+<g><rect x="20" y="238" width="270" height="42"/><text x="30" y="256">Presence &amp; travel</text><text class="sub" x="30" y="270">minute by area · hourly trip ends</text></g>
+<g><rect x="340" y="238" width="200" height="42"/><text x="350" y="256">Resident grocery walks</text><text class="sub" x="350" y="270">same occasions in both runs</text></g>
+<g class="intervention"><rect x="550" y="173" width="80" height="38"/><text x="557" y="188">Open shop</text><text class="sub" x="557" y="202">set hours</text></g>
+<path d="M590 211V258H542" fill="none" stroke="var(--branch-green)" marker-end="url(#van-change)"/>
+<g class="comparison"><rect x="20" y="308" width="270" height="43"/><text x="30" y="326">Check mobility predictions</text><text class="sub" x="30" y="341">bridge counters · station counts · cycling</text></g>
+<g><rect x="340" y="308" width="280" height="43"/><text x="350" y="326">Visits gained or diverted</text><text class="sub" x="350" y="341">sales change = visit change × assumed basket</text></g>
+</svg></div>
+<figcaption>Amber marks observed inputs. Follow the left branch to see how regional travel is checked against counts (blue). Follow the right branch to see how opening a shop (green) changes the choices available to resident shoppers.</figcaption>
+</figure>

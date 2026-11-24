@@ -1,0 +1,4 @@
+{:stuttgart {:producer city.demo.stuttgart/prepare-presence}
+ :vancouver {:producer city.vancouver.weekday-presence/prepare
+             :roots {"city" "public/data/vancouver"
+                     "region" "public/data/vancouver/region"}}}

@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vancouver weekday map · simmis</title></head>
+<body><p><a id="laboratory" href="explorer.html?city=vancouver&amp;retired=vancouver">Open the Vancouver regional explorer</a></p>
+<script type="module">
+import {entryDestination} from "./lab/entry.js";
+const destination = entryDestination(location);
+document.getElementById("laboratory").href = destination.href;
+location.replace(destination.href);
+</script></body></html>

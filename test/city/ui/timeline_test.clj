@@ -17,3 +17,18 @@
   (is (< (Math/abs (- 0.15 (t/advance-hour 23.9 0.25 60))) 1e-9))
   (is (= (t/advance-hour 5 100 60) (t/advance-hour 5 0.25 60)))
   (is (= {:month 3 :firms 90} (t/month-row [{:month 1 :firms 100} {:month 3 :firms 90}] 4))))
+
+(deftest followed-traces-are-limited-to-available-legs
+  (let [legs (first (t/group-trips trips))
+        followed #(t/traced-person-at legs %)]
+    (is (nil? (followed 59)))
+    (is (= [5N 10N] (:position (followed 90))))
+    (is (= :arrival (:phase (followed 120))))
+    (is (= :stop (:phase (followed 150))))
+    (is (= :travel (:phase (followed 180))))
+    (is (nil? (followed 241)))
+    (is (nil? (t/traced-person-at [(first legs)] 150)))
+    (is (nil? (t/traced-person-at (assoc-in legs [1 :path 0] [1 2]) 150)))))
+
+(deftest playback-preserves-minute-boundaries
+  (is (== 485 (t/minute-at-hour (/ 485.0 60.0)))))

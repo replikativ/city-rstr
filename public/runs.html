@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>City runs · City laboratory</title><link rel="stylesheet" href="lab/explorer.css"></head>
+<body><header class="masthead replay-masthead"><a class="wordmark" href="https://simm.is">simm<span>is</span></a><span>City laboratory</span><a id="back-to-map" href="explorer.html">Back to map</a></header>
+<main class="run-library"><h1>City runs</h1>
+<label for="library-city">City</label> <select id="library-city" disabled></select>
+<section><h2>Current weekday</h2><a href="weekday-sources.html">Model and city evidence</a><ul id="published-runs"></ul></section>
+<details id="archived-section"><summary>Other releases</summary><ul id="archived-runs"></ul></details>
+<section id="local-experiments" hidden><h2>Saved shop openings</h2><p>These experiments remain in this browser. Replay ended with the retirement of the earlier Vancouver workbench.</p><ul id="local-openings"></ul></section>
+<p id="library-status" role="status">Loading runs…</p><a id="live-laboratory" href="explorer.html">Open the explorer</a></main>
+<script>document.getElementById("back-to-map").href="explorer.html"+location.search;</script>
+<script type="module">import {initLibrary} from "./js/experiments/saved.js";initLibrary();</script>
+</body></html>

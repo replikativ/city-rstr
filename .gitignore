@@ -17,3 +17,8 @@ dist/
 *.swp
 *~
 .DS_Store
+
+# Published city inputs and release artifacts are distributed separately.
+/public/data/
+.clj-kondo/imports/
+__pycache__/

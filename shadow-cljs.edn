@@ -5,4 +5,17 @@
                 :output-dir "public/js/app"
                 :asset-path "/js/app"
                 :modules {:main {:init-fn city.ui.app/init}}
-                :devtools {:after-load city.ui.app/reload!}}}}
+                :devtools {:after-load city.ui.app/reload!}}
+          :replay {:target :esm
+                   :output-dir "public/js/replay"
+                   :modules {:replay {:exports {preferredRun city.ui.replay/preferred-run
+                                                weekdayQuery city.ui.replay/weekday-query
+                                                cityLink city.ui.replay/city-link}}}}
+          :experiments {:target :esm
+                        :output-dir "public/js/experiments"
+                        :modules {:saved {:exports {releaseManifest city.ui.experiments/release-manifest
+                                                   indexManifest city.ui.experiments/index-manifest!
+                                                   initLibrary city.ui.run-library/init}}}}
+          :offline-vancouver {:target :esm
+                              :output-dir "target/offline-vancouver"
+                              :modules {:workplaces {:exports {residentTrips city.vancouver.offline-workplaces/resident-trips}}}}}}

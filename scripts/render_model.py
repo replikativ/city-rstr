@@ -72,7 +72,7 @@ while i < len(src):
 flush()
 page = '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>The probabilistic model · simmis city laboratory</title><link rel="stylesheet" href="/lab/lab.css">
+<title>The probabilistic model · simmis city laboratory</title><link rel="stylesheet" href="lab/lab.css">
 <script>window.MathJax = {tex: {inlineMath: [["MJXBS(", "MJXBS)"]], displayMath: [["$$", "$$"]]}, svg: {fontCache: "global"}};</script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
 <style>.doc{max-width:880px;margin:0 auto;padding:28px 22px 80px}.doc h1{font-size:34px}.doc h2{margin-top:44px;border-top:1px solid var(--rail);padding-top:22px}.doc h3{font:15px var(--mono);margin-top:28px}
@@ -80,7 +80,7 @@ page = '''<!doctype html>
 .doc code{font:12px var(--mono);color:var(--runtime-amber)}.doc table{border-collapse:collapse;width:100%;font-size:12px;margin:14px 0}.doc th,.doc td{padding:6px 8px;border-bottom:1px solid var(--rail);text-align:left;vertical-align:top}.doc th{color:var(--graphite);font-weight:normal}
 .doc .back{font:11px var(--mono)}.doc .math{overflow-x:auto;margin:14px 0;color:var(--ink)}.doc figure{margin:24px 0;border:1px solid var(--rail);padding:12px}.doc figure > svg{width:100%;height:auto;display:block}.doc figcaption{font-size:12px;line-height:1.6;color:var(--graphite);margin-top:8px}.doc ol li{margin:6px 0}</style></head>
 <body><header class="masthead"><a class="wordmark" href="https://simm.is">simm<span>is</span><i aria-hidden="true">▦</i></a><div class="project-name">city laboratory <span>/ the model</span></div>
-<a class="stage" href="/lab.html">← BACK TO THE EXPLORER</a></header>
+<a class="stage" href="lab.html?mode=city&city=stuttgart&overlays=areas,scenario&scenario=close-milaneo">← BACK TO THE EXPLORER</a></header>
 <main class="doc">{{BODY}}<p class="back hint">Rendered from <code>doc/model.md</code> in the repository; the chronological findings log is <code>doc/simulator.md</code>.</p></main></body></html>'''.replace('{{BODY}}', '\n'.join(out))
 page = page.replace('MJXBS', chr(92) * 2)
 open('public/model.html', 'w', encoding='utf-8').write(page)

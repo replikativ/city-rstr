@@ -4,9 +4,9 @@
    maps it to the file a static export holds instead. Pure, so it is tested on
    the JVM.")
 
-(def ^:private whole-city-run
-  {:vancouver "city"
-   :stuttgart "stuttgart"})
+(def cities
+  {:stuttgart {:center [9.18 48.78] :region-level "stadtteil" :whole-city-run "stuttgart"}
+   :vancouver {:center [-123.11 49.27] :region-level "local-area" :whole-city-run "city"}})
 
 (def ^:private year-kinds #{:storefront :licence})
 
@@ -41,7 +41,7 @@
   [{:keys [city level area year bbox kinds stride entity run-key scenario]}]
   (let [area? (numeric-id? area)
         entity? (numeric-id? entity)
-        run (or (value-string run-key) (whole-city-run city))
+        run (or (value-string run-key) (get-in cities [city :whole-city-run]))
         sim-params (when run {:area run})
         viewport-params (when run (with-bbox sim-params bbox))]
     (cond->

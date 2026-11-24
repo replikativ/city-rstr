@@ -919,6 +919,11 @@
    stride 1 is a million legs, which is a gigabyte of polylines if they are all
    kept and nothing at all if the consumer reduces them as they arrive.
 
+   With `:schedule-fn`, call (f person diary-start diary-end base-lon base-lat stops)
+   for every eligible person, including stationary people. Stops carry purpose,
+   departure, arrival, destination coordinates and a movement flag. Request a
+   `:trace-fn` as well to compute the routed sample in the same pass.
+
    Two mode/route parameters:
    - `:p-keep` (default `default-p-keep-diary-mode`) — probability that a
      person-day keeps the diary's own travel modes; otherwise every leg of that
@@ -930,7 +935,7 @@
    A transit leg's access and egress walk are emitted as extra legs of mode
    `walk` and purpose `access`, flagged `:access`, right after the transit leg
    itself."
-  [world tables seed & {:keys [stride route trace-fn p-keep route-variants]
+  [world tables seed & {:keys [stride route trace-fn schedule-fn p-keep route-variants]
                        :or {stride 10 p-keep default-p-keep-diary-mode
                             route-variants net/walk-route-variants}}]
   (let [stride (max 1 (long stride))
@@ -973,9 +978,11 @@
                 ;; profile is a property of the person-day, not of the leg
                 default-mode (sample-mode modes i seed)
                 census? (census-day? i seed p-keep)
-                trace? (zero? (mod @diary-number stride))
+                trace? (and (or trace-fn (nil? schedule-fn)) (zero? (mod @diary-number stride)))
+                stops (when schedule-fn (java.util.ArrayList.))
                 legs (when trace? (java.util.ArrayList.))
                 add-leg! (fn [alon alat blon blat purpose dep arr mode-code]
+                           (when stops (.add stops [purpose dep arr blon blat (moved? alon alat blon blat)]))
                            (when (and trace? (moved? alon alat blon blat))
                              (let [variant (long (* route-variants (uniform seed i (+ 3001 (.size legs)))))
                                    leg (make-leg route alon alat blon blat purpose dep arr
@@ -1067,6 +1074,9 @@
                                         (if (= loc 1) "school" (purpose-of-loc loc))
                                         dep arr (aget ep-mode e))
                               (recur (inc e) anchor vlon vlat r))))))))))
+            (when schedule-fn
+              (schedule-fn i (aget ^ints (:diary-start diaries) d) (aget ^ints (:diary-end diaries) d)
+                           base-lon base-lat stops))
             (when (and trace? (pos? (.size legs)))
               (let [tr {:type (trace-type labour attsch i) :person i :legs (vec legs)}]
                 (if trace-fn (trace-fn tr) (conj! traces tr))))))))

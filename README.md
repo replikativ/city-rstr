@@ -1,6 +1,6 @@
 # city-rstr
 
-A data-grounded simulation of Stuttgart, and Bayesian inference over it.
+Data-grounded city simulation and replay for Stuttgart and Vancouver. The [implementation plan](doc/implementation-plan.md) tracks the shared engine, browser data library, scientific validation and explorer.
 
 **This is a research prototype, not a library.** There is no release, the
 namespaces and functions change without notice, and nothing here is meant to
@@ -10,7 +10,39 @@ assumptions stated in [`doc/model.md`](doc/model.md) §11, several of which are
 placeholders, and the published posterior is approximate.  The numbers are not
 forecasts.
 
-## What the model does
+## Run the two-city explorer
+
+To reproduce the reviewed preview from a clean checkout, follow the [release and data instructions](deploy/README.md).
+
+To regenerate a city's weekday from producer data, place the versioned datasets in `public/data` and the source archive in `../Simulations/city`. The [weekday build recipes](resources/city/weekday-builds.edn) pin the data used by each run, including the Vancouver route cache, road speeds and grocery scenario. From the project root:
+
+```sh
+clojure -M:weekday-build --city vancouver --describe
+clojure -M:weekday-build --city vancouver --verify
+clojure -M:weekday-build --city stuttgart --verify
+```
+
+`--city vancouver` selects Vancouver, UBC and the North Shore. Use `--release ID` for a municipal historical run. With no selector the build processes all four catalogue entries. `--output DIR` writes the generated overview files to a separate directory for comparisons. `--verify` checks source receipts and compares the staged files with the reviewed output checksums before installing them. At a REPL, call `(city.build/build! {:city :vancouver :verify true})` after requiring `city.build`. The existing `npm run overview:build` invokes the same Clojure entry point.
+
+The producer archive includes prepared census rosters, diaries, and routed samples. To recreate those inputs from their original sources, see [data preparation](DATA.md). For example, `python3 -m scripts.vancouver_market ../Simulations/city --data public/data/vancouver/region --continuous` rebuilds the regional grocery catalogue. The archived detailed experiments and their source descriptions are in the [Vancouver research notes](doc/vancouver.md).
+
+Run `npm run release` to compile the explorer and `npm run preview:bundle` to assemble the static preview. Serve the bundle with `python3 -m scripts.preview_local --directory dist/city-previews/current` and open the [local explorer](http://127.0.0.1:8191/city/).
+
+To regenerate offline workplace assignments and their validation runs, compile their ClojureScript adapter with `npm run offline:vancouver`. These producers load `target/offline-vancouver/workplaces.js`.
+
+The [shared model](public/weekday-sources.html) explains the clock and simulation outputs. The [Stuttgart](public/stuttgart-model.html) and [Vancouver](public/vancouver-model.html) pages document their population, travel, retail assumptions and source records. Regenerate these pages with `python3 -m scripts.preview_sources`.
+
+The city selector switches between Stuttgart and regional Vancouver on one map. Regional Vancouver includes residents of Vancouver, UBC and the North Shore, plus external commuters in its area counts. Moving dots follow the published subset of routed trips. In Stuttgart the street replay checks each leg against its diary time budget using speeds for the mode and street. Select a moving traveller to see its speed in simulation time. Area overlays include scenario outcomes with their original geographic scope, time period and units. A copied explorer URL restores the release, time, map position and selected shop. The run library also exposes the municipal Vancouver releases.
+
+From a Clojure REPL, rerun any bundled resident day with its run-library release ID. After preparation the same arrays can be evaluated repeatedly without an open database or access to the source archive.
+
+```clojure
+(require '[city.weekday :as weekday])
+(def prepared (weekday/prepare-release "public/data" release-id))
+(def day (weekday/execute prepared :jvm #{:presence :trip-ends :od-flows}))
+```
+
+## Stuttgart model
 
 936,597 synthetic people (610,444 residents drawn from the Zensus 2022 grid,
 326,153 in-commuters from the employment statistics) live one weekday.  Each
@@ -36,10 +68,19 @@ effects with their posterior bands.  It is a static export
 (`city.demo.stuttgart/export-static!`): nothing is computed in the browser,
 and venue names are removed.
 
+The explorer opens on the movement view. Selecting a scenario keeps the current
+playback time and shows the district with the highest mean revenue gain, with
+its 90% interval. Select that result for the district comparison, or use
+**Check calibration** for the observed and predicted turnovers. Both views have
+shareable links, for example `?scenario=move-milaneo#district-effects` and
+`?scenario=move-milaneo#calibration-short`.
+
 ## Reading
 
+- [Vancouver weekday model](doc/vancouver.md) describes the first Vancouver activity baseline, its executable scorecard and the proposed Mount Pleasant grocery-opening comparison.
+
 - [`doc/model.md`](doc/model.md) (rendered as `public/model.html` by
-  `python3 dev/render_model.py`): the model
+  `python3 scripts/render_model.py`): the model
   as a joint distribution, its assumptions, the inference and the
   interventions.  Start here.
 - [`doc/architecture.md`](doc/architecture.md): how the code is laid out, how
@@ -89,6 +130,8 @@ clojure -M:demo up            # build Stuttgart, load or fit the posterior, publ
 clojure -M:demo export        # the same, then write the static explorer to dist/lab
 ```
 
+Build the browser assets with `npm run release` before exporting the standalone explorer.
+
 Or from a REPL (`clojure -M:dev`, nREPL on port 7900), step by step:
 
 ```clojure
@@ -131,3 +174,18 @@ The code is released under the MIT licence (see `LICENSE`).  Data is not part
 of the repository; each source keeps its own licence (see `DATA.md`), and
 published outputs derived from OpenStreetMap are subject to the Open Database
 Licence.  The explorer bundles MapLibre GL JS (BSD-3-Clause) and deck.gl (MIT).
+
+## Vancouver research archive
+
+The shared explorer includes regional Vancouver, UBC and the North Shore, the
+full roster and routed sample, and the East Hastings grocery comparison. The
+[scientific exposition](public/vancouver-methods.html) explains the population
+behind each result. The [source register](public/sources/weekday.json) identifies
+the inputs. The regional validation tables are in the [city evidence page](public/vancouver-model.html).
+
+The retired Vancouver workbench included the street-level driving prototype,
+the population atlas inspector, transit experiments and alternate shopping
+scenarios. The original source, commands and interface are preserved in the
+[workbench revision](https://github.com/replikativ/city-rstr/tree/ebaecc15f7d583633580b7009137393e4be892d8).
+Its corresponding built artifact on the publishing machine is
+`dist/city-previews/c05e52956d9ee807c7c61141328e9f7f134526427a4e7399831ceea930865b7d/`.
