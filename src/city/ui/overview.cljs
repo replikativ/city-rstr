@@ -13,6 +13,10 @@
   (-> (js/fetch url options) (.then (fn [^js r] (if (.-ok r) (.json r) (throw (js/Error. (str "Unavailable: " url))))))))
 (defn- option! [id title value] (.add (el id) (js/Option. title value)))
 (defn- quantity [n] (.toLocaleString n js/undefined #js {:maximumFractionDigits 0}))
+(defn- population-share [shown total]
+  (when (pos? total)
+    (let [pct (/ (* 100 shown) total)]
+      (str (if (< 0 pct 0.01) "<0.01" (.toLocaleString pct js/undefined #js {:maximumFractionDigits 2})) "%"))))
 (defn- time-label [minute]
   (str (.padStart (str (quot minute 60)) 2 "0") ":" (.padStart (str (mod minute 60)) 2 "0")))
 
@@ -263,7 +267,7 @@
                             (aset xy (* 2 slot) js/NaN)
                             (aset xy (inc (* 2 slot)) js/NaN)
                             (vswap! routed inc)))
-                        (put! "agent-count" (str (quantity size) " of " (quantity total) " agents · "
+                        (put! "agent-count" (str (quantity size) " of " (quantity total) " modeled people (" (population-share size total) " shown) · "
                                                  (quantity @routed) " moving on street paths. Grey dots mark the last modeled stop and jump when the next stop begins.")))
                       (.setProps overlay #js {:layers #js [(ScatterplotLayer.
                         #js {:id "resident-positions" :beforeId "trails" :data #js {:length size :attributes #js {:getPosition #js {:value xy :size 2}}}
@@ -317,10 +321,12 @@
                   (swap! state assoc :visible-ids visible))
                   (when routed?
                    (let [idx (mod (- minute (aget scene "dayStart")) 1440)
-                        travel (.indexOf (aget scene "areas") "travelling")]
+                        travel (.indexOf (aget scene "areas") "travelling")
+                         shown (.-size (:visible-ids @state))]
                     (put! "agent-count" (str (quantity (alength points)) " of " (quantity @available)
                                              " active routed sample paths · " (quantity (aget (aget (aget scene "presence") idx) travel))
-                                             " travelling in the modeled population.")))))
+                                             (if (< (aget scene "population") total) " residents travelling" " people travelling")
+                                             " · Showing " (population-share shown total) " of the weekday roster (" (quantity total) ").")))))
                 (.setData (.getSource m "trails") #js {:type "FeatureCollection" :features paths})
                 (.setData (.getSource m "people") #js {:type "FeatureCollection" :features points})
                 (put! "person" (when (and person (nil? (scenario))) (str "Traveller " person " · " (if-let [leg @found]
